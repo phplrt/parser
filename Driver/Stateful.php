@@ -9,7 +9,7 @@ declare(strict_types=1);
 
 namespace Phplrt\Parser\Driver;
 
-use Phplrt\Contracts\Parser\ParserInterface;
+use Phplrt\Parser\ParserInterface;
 
 /**
  * @deprecated use Phplrt\Parser\Parser instead.
