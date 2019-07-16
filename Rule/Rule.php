@@ -1,6 +1,6 @@
 <?php
 /**
- * This file is part of Phplrt package.
+ * This file is part of phplrt package.
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
@@ -59,9 +59,9 @@ abstract class Rule
      */
     public function __construct($name, $children, string $nodeId = null)
     {
-        $this->name = $name;
+        $this->name     = $name;
         $this->children = $children;
-        $this->nodeId = $nodeId;
+        $this->nodeId   = $nodeId;
     }
 
     /**

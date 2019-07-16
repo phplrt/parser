@@ -1,6 +1,6 @@
 <?php
 /**
- * This file is part of Phplrt package.
+ * This file is part of phplrt package.
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
@@ -48,8 +48,8 @@ class Buffer implements \Iterator, \Countable
         \assert($size > 0, 'Buffer size must be greater than 0');
         \assert($size <= \PHP_INT_MAX, 'Buffer size must less than ' . \PHP_INT_MAX);
 
-        $this->size = $size;
-        $this->inner = $this->toGenerator($iterator);
+        $this->size   = $size;
+        $this->inner  = $this->toGenerator($iterator);
         $this->buffer = new \SplDoublyLinkedList();
 
         if ($this->inner->valid()) {

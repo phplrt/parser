@@ -1,6 +1,6 @@
 <?php
 /**
- * This file is part of Phplrt package.
+ * This file is part of phplrt package.
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
@@ -9,7 +9,7 @@ declare(strict_types=1);
 
 namespace Phplrt\Parser\Trace;
 
-use Phplrt\Lexer\TokenInterface;
+use Phplrt\Contracts\Lexer\TokenInterface;
 
 /**
  * Class Token
@@ -35,7 +35,7 @@ class Token extends TraceItem
      */
     public function __construct(TokenInterface $token, bool $kept)
     {
-        $this->kept = $kept;
+        $this->kept  = $kept;
         $this->token = $token;
         $this->at($token->getOffset());
     }
