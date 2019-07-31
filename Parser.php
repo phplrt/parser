@@ -9,11 +9,11 @@ declare(strict_types=1);
 
 namespace Phplrt\Parser;
 
-use Phplrt\Contracts\Ast\RuleInterface;
-use Phplrt\Contracts\Io\Readable;
+use Phplrt\Contracts\Ast\NodeInterface;
 use Phplrt\Contracts\Lexer\LexerInterface;
 use Phplrt\Contracts\Lexer\TokenInterface;
 use Phplrt\Contracts\Parser\ParserInterface;
+use Phplrt\Contracts\Source\Readable;
 use Phplrt\Exception\ExternalException;
 use Phplrt\Lexer\Token\Unknown;
 use Phplrt\Parser\Exception\GrammarException;
@@ -143,7 +143,7 @@ class Parser implements ParserInterface
 
     /**
      * @param Readable $input
-     * @return RuleInterface|mixed
+     * @return NodeInterface|mixed
      * @throws ExternalException
      */
     public function parse(Readable $input)
