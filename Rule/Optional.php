@@ -12,9 +12,9 @@ namespace Phplrt\Parser\Rule;
 use Phplrt\Parser\Buffer\BufferInterface;
 
 /**
- * Class Concatenation
+ * Class Optional
  */
-class Concatenation extends Production
+class Optional extends Production
 {
     /**
      * @param BufferInterface $buffer
@@ -31,7 +31,7 @@ class Concatenation extends Production
             if (($result = $reduce($rule)) === null) {
                 $buffer->seek($revert);
 
-                return null;
+                return $children;
             }
 
             if (\is_array($result)) {

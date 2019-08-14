@@ -1,6 +1,6 @@
 <?php
 /**
- * This file is part of phplrt package.
+ * This file is part of parser package.
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
@@ -9,151 +9,222 @@ declare(strict_types=1);
 
 namespace Phplrt\Parser;
 
-use Phplrt\Parser\Exception\GrammarException;
-use Phplrt\Parser\Rule\Rule;
+use Phplrt\Parser\Rule\Lexeme;
+use Phplrt\Parser\Rule\Optional;
+use Phplrt\Lexer\LexerInterface;
+use Phplrt\Compiler\LexerBuilder;
+use Phplrt\Parser\Rule\Alternation;
+use Phplrt\Parser\Rule\RuleInterface;
+use Phplrt\Parser\Rule\Concatenation;
+use Phplrt\Compiler\LexerBuilderInterface;
+use Phplrt\Parser\Rule\ProductionInterface;
 
 /**
- * Class Grammar
+ * Class Builder
  */
-class Grammar implements GrammarInterface
+class Grammar
 {
     /**
-     * @var array|Rule[]
+     * @var array
+     */
+    private $ids = [];
+
+    /**
+     * @var array|RuleInterface[]
      */
     private $rules = [];
 
     /**
-     * @var string|int
+     * @var LexerBuilder
      */
-    private $root;
+    private $lexer;
 
     /**
-     * @var array|string[]
+     * @var int
      */
-    private $delegates = [];
+    private $tokens = 0;
 
     /**
-     * Grammar constructor.
+     * Builder constructor.
      *
-     * @param array|Rule[] $rules
-     * @param array|string[] $delegates
-     * @param string|int|null $root
+     * @param \Closure $expr
+     * @param string|null $initial
      */
-    public function __construct(array $rules = [], $root = null, array $delegates = [])
+    public function __construct(\Closure $expr, string $initial = null)
     {
-        $this->addRules(\array_values($rules));
-        $this->addDelegates($delegates);
-        $this->root = $root;
-    }
+        $this->lexer = new LexerBuilder();
 
-    /**
-     * @param Rule[] $rules
-     * @return GrammarInterface|$this
-     */
-    public function addRules(array $rules): GrammarInterface
-    {
-        foreach ($rules as $rule) {
-            $this->addRule($rule);
+        if ($initial) {
+            $this->fetchId($initial);
         }
 
-        return $this;
+        $this->extend($expr);
     }
 
     /**
-     * @param Rule $rule
-     * @return GrammarInterface|$this
+     * @param string $pcre
+     * @param string|null $name
+     * @return RuleInterface
      */
-    public function addRule(Rule $rule): GrammarInterface
+    public function token(string $pcre, string $name = null): RuleInterface
     {
-        $this->rules[$rule->getName()] = $rule;
+        $name = $name ?? $pcre;
 
-        return $this;
+        $this->tokens++;
+
+        $this->lexer->token($name, $pcre);
+
+        return new Lexeme(0xff + $this->tokens);
     }
 
     /**
-     * @param array $delegates
-     * @return GrammarInterface|$this
+     * @param string|\Closure $nameOrCallback
+     * @param \Closure|null $then
+     * @return LexerBuilderInterface
      */
-    public function addDelegates(array $delegates): GrammarInterface
+    public function lexer($nameOrCallback, \Closure $then = null): LexerBuilderInterface
     {
-        foreach ($delegates as $rule => $delegate) {
-            $this->addDelegate($rule, $delegate);
-        }
-
-        return $this;
+        return $this->lexer->state($nameOrCallback, $then);
     }
 
     /**
-     * @return string
-     * @throws GrammarException
+     * @return array
      */
-    private function resolveRootRule(): string
+    public function getGrammar(): array
     {
-        foreach ($this->rules as $i => $rule) {
-            if (\is_string($rule->getName())) {
-                return $rule->getName();
+        $result = [];
+
+        foreach ($this->getRules() as $id => $rule) {
+            switch (true) {
+                case $rule instanceof ProductionInterface:
+                    $result[$id] = $rule->getSequence();
+                    break;
+                case $rule instanceof Lexeme:
+                    $result[$id] = $rule->token;
+                    break;
             }
         }
 
-        throw new GrammarException('Unrecognized root rule');
+        \ksort($result);
+
+        return $result;
     }
 
     /**
-     * @param string $rule
-     * @return string|null
+     * @param array $rules
+     * @param \Closure $then
+     * @return RuleInterface
      */
-    public function delegate(string $rule): ?string
+    public function sequenceOf(array $rules, \Closure $then = null): RuleInterface
     {
-        return $this->delegates[$rule] ?? null;
+        return new Concatenation($rules, $then);
     }
 
     /**
-     * @return int|null|string
-     * @throws GrammarException
+     * @param array $rules
+     * @param \Closure $then
+     * @return RuleInterface
      */
-    public function beginAt()
+    public function optional(array $rules, \Closure $then = null): RuleInterface
     {
-        if ($this->root === null) {
-            $this->root = $this->resolveRootRule();
+        return new Optional($rules, $then);
+    }
+
+    /**
+     * @param array $rules
+     * @param \Closure|null $then
+     * @return RuleInterface
+     */
+    public function oneOf(array $rules, \Closure $then = null): RuleInterface
+    {
+        return new Alternation($rules, $then);
+    }
+
+    /**
+     * @return array|int[]
+     */
+    public function getTypes(): array
+    {
+        $result = [];
+
+        foreach ($this->getRules() as $id => $rule) {
+            $result[$id] = $rule->getType();
         }
 
-        return $this->root;
+        \ksort($result);
+
+        return $result;
     }
 
     /**
-     * @param int|string $rule
-     * @return Rule
+     * @param \Closure $expr
+     * @return Grammar
      */
-    public function fetch($rule): Rule
+    public function extend(\Closure $expr): self
     {
-        return $this->rules[$rule];
-    }
+        /** @var \Generator $generator */
+        $generator = $expr($this);
 
-    /**
-     * @param string $rule
-     * @param string $delegate
-     * @return GrammarInterface|$this
-     */
-    public function addDelegate(string $rule, string $delegate): GrammarInterface
-    {
-        $this->delegates[$rule] = $delegate;
+        while ($generator->valid()) {
+            [$name, $rule] = [$generator->key(), $generator->current()];
+
+            if ($rule instanceof ProductionInterface) {
+                $rule->withSequence(\array_map($this->mapper(), $rule->getSequence()));
+            }
+
+            $this->rules[$id = $this->fetchId((string)$name)] = $rule;
+
+            $generator->send($id);
+        }
+
+        \ksort($this->rules);
 
         return $this;
     }
 
     /**
-     * @return iterable|string[]
+     * @return \Closure
      */
-    public function getDelegates(): iterable
+    private function mapper(): \Closure
     {
-        return $this->delegates;
+        return function ($id) {
+            switch (true) {
+                case \is_int($id):
+                    return $id;
+                case \is_string($id):
+                    return $this->fetchId($id);
+                default:
+                    return $this->ids[] = \count($this->ids);
+            }
+        };
     }
 
     /**
-     * @return iterable
+     * @param string $expr
+     * @return int
      */
-    public function getRules(): iterable
+    private function fetchId(string $expr): int
     {
-        return \array_values($this->rules);
+        if (! isset($this->ids[$expr])) {
+            $this->ids[$expr] = \count($this->ids);
+        }
+
+        return $this->ids[$expr];
+    }
+
+    /**
+     * @return array|RuleInterface[]
+     */
+    public function getRules(): array
+    {
+        return $this->rules;
+    }
+
+    /**
+     * @return LexerInterface
+     */
+    public function getLexer(): LexerInterface
+    {
+        return $this->lexer->build();
     }
 }
