@@ -14,7 +14,7 @@ use Phplrt\Parser\Buffer\BufferInterface;
 /**
  * Class Optional
  */
-class Optional extends Production
+class Optional extends Concatenation
 {
     /**
      * @param BufferInterface $buffer
@@ -23,25 +23,12 @@ class Optional extends Production
      * @param \Closure $reduce
      * @return iterable|null
      */
-    public function match(BufferInterface $buffer, int $type, int $offset, \Closure $reduce): ?iterable
+    public function reduce(BufferInterface $buffer, int $type, int $offset, \Closure $reduce): ?iterable
     {
-        [$revert, $children] = [$buffer->key(), []];
-
-        foreach ($this->sequence as $rule) {
-            if (($result = $reduce($rule)) === null) {
-                $buffer->seek($revert);
-
-                return $children;
-            }
-
-            if (\is_array($result)) {
-                /** @noinspection SlowArrayOperationsInLoopInspection */
-                $children = \array_merge($children, $result);
-            } else {
-                $children[] = $result;
-            }
+        if ($result = parent::reduce($buffer, $type, $offset, $reduce)) {
+            return $result;
         }
 
-        return $this->reduce($children, $offset, $type);
+        return [];
     }
 }

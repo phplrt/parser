@@ -13,23 +13,23 @@ use Phplrt\Parser\Buffer\BufferInterface;
 use Phplrt\Contracts\Lexer\TokenInterface;
 
 /**
- * Class Lexeme
+ * Class Value
  */
-class Lexeme extends Rule implements TerminalInterface
+class Value extends Rule implements TerminalInterface
 {
     /**
-     * @var int
+     * @var string
      */
-    public $token;
+    public $value;
 
     /**
-     * Lexeme constructor.
+     * Value constructor.
      *
-     * @param int $token
+     * @param string $value
      */
-    public function __construct(int $token)
+    public function __construct(string $value)
     {
-        $this->token = $token;
+        $this->value = $value;
     }
 
     /**
@@ -40,7 +40,7 @@ class Lexeme extends Rule implements TerminalInterface
     {
         $haystack = $buffer->current();
 
-        if ($haystack->getType() === $this->token) {
+        if ($haystack->getValue() === $this->value) {
             return $haystack;
         }
 

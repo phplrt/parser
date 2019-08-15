@@ -12,7 +12,7 @@ namespace Phplrt\Parser\Rule;
 use Phplrt\Parser\Buffer\BufferInterface;
 
 /**
- * Class LeftAlternation
+ * Class Alternation
  */
 class Alternation extends Production
 {
@@ -23,13 +23,13 @@ class Alternation extends Production
      * @param \Closure $reduce
      * @return iterable|null
      */
-    public function match(BufferInterface $buffer, int $type, int $offset, \Closure $reduce): ?iterable
+    public function reduce(BufferInterface $buffer, int $type, int $offset, \Closure $reduce): ?iterable
     {
         foreach ($this->sequence as $rule) {
             if (($value = $reduce($rule)) !== null) {
                 $children = \is_array($value) ? $value : [$value];
 
-                return $this->reduce($children, $offset, $type);
+                return $this->toAst($children, $offset, $type);
             }
         }
 

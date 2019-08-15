@@ -12,20 +12,45 @@ namespace Phplrt\Parser;
 use Phplrt\Parser\Rule\RuleInterface;
 use Phplrt\Contracts\Ast\NodeInterface;
 use Phplrt\Parser\Buffer\BufferInterface;
-use Phplrt\Parser\Runtime\AbstractParser;
 use Phplrt\Parser\Rule\TerminalInterface;
 use Phplrt\Contracts\Lexer\LexerInterface;
 use Phplrt\Contracts\Lexer\TokenInterface;
 use Phplrt\Parser\Rule\ProductionInterface;
-use Phplrt\Parser\Exception\ParserException;
 use Phplrt\Contracts\Source\ReadableInterface;
-use Phplrt\Parser\Exception\ParserRuntimeException;
 use Phplrt\Contracts\Source\Exception\NotReadableExceptionInterface;
 
 /**
- * Recursive descent parser
+ * A LL(k) recurrence recursive descent parser implementation.
+ *
+ * Is a kind of top-down parser built from a set of mutually recursive methods
+ * defined in:
+ *  - Phplrt\Parser\Rule\ProductionInterface::reduce()
+ *  - Phplrt\Parser\Rule\TerminalInterface::reduce()
+ * Where each such class implements one of the terminals or productions of the
+ * grammar. Thus the structure of the resulting program closely mirrors that
+ * of the grammar it recognizes.
+ *
+ * A "recurrence" means that instead of predicting, the parser simply tries to
+ * apply all the alternative rules in order, until one of the attempts succeeds.
+ *
+ * Such a parser may require exponential work time, and does not always
+ * guarantee completion, depending on the grammar.
+ *
+ * Vulnerable to left recursion, like:
+ * <code>
+ *      Digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+ *      Operator = "+" | "-" | "*" | "/" ;
+ *      Number = Digit { Digit } ;
+ *
+ *      Expression = Number | Number Operator ;
+ *      (*            ^^^^^^   ^^^^^^
+ *          In this case, the grammar is incorrect and should be replaced by:
+ *
+ *          Expression = Number { Operator } ;
+ *      *)
+ * </code>
  */
-class RecursiveDescent extends AbstractParser
+class LL extends AbstractParser
 {
     /**
      * @var int
@@ -38,22 +63,12 @@ class RecursiveDescent extends AbstractParser
     private $rules;
 
     /**
-     * @var int
-     */
-    public $cycles = 0;
-
-    /**
-     * @var int
-     */
-    public $rollbacks = 0;
-
-    /**
      * Parser constructor.
      *
      * @param array|RuleInterface[] $rules
      * @param LexerInterface $lexer
      */
-    public function __construct(array $rules, LexerInterface $lexer)
+    public function __construct(LexerInterface $lexer, array $rules)
     {
         parent::__construct($lexer);
 
@@ -61,14 +76,13 @@ class RecursiveDescent extends AbstractParser
     }
 
     /**
-     * @param ReadableInterface $src
-     * @return NodeInterface
+     * {@inheritDoc}
      * @throws NotReadableExceptionInterface
-     * @throws ParserException
-     * @throws ParserRuntimeException
      */
     public function parse(ReadableInterface $src): iterable
     {
+        $this->rollbacks = $this->reduces = 0;
+
         $buffer = $this->lex($src);
 
         if (($result = $this->reduce($buffer, $this->state)) === null) {
@@ -79,18 +93,7 @@ class RecursiveDescent extends AbstractParser
             throw $this->unexpectedToken($src, $buffer->current());
         }
 
-        return $this->filter($result);
-    }
-
-    /**
-     * @param BufferInterface $buffer
-     * @return \Closure
-     */
-    private function next(BufferInterface $buffer): \Closure
-    {
-        return function (int $state) use ($buffer) {
-            return $this->reduce($buffer, $state);
-        };
+        return $this->normalize($result);
     }
 
     /**
@@ -100,50 +103,34 @@ class RecursiveDescent extends AbstractParser
      */
     private function reduce(BufferInterface $buffer, int $state)
     {
-        $this->cycles++;
+        [$rule, $token, $result] = [$this->rules[$state], $buffer->current(), null];
 
-        $rule = $this->rules[$state];
-        $offset = $buffer->current()->getOffset();
+        $this->reduces++;
 
         switch (true) {
+            case $token->getType() === $this->eoi:
+                $result = null;
+                break;
+
             case $rule instanceof ProductionInterface:
-                $result = $rule->match($buffer, $state, $offset, $this->next($buffer));
+                $result = $rule->reduce($buffer, $state, $token->getOffset(), function (int $state) use ($buffer) {
+                    return $this->reduce($buffer, $state);
+                });
                 break;
 
             case $rule instanceof TerminalInterface:
-                if ($result = $rule->match($buffer)) {
+                if ($result = $rule->reduce($buffer)) {
                     $this->token = $result;
-                }
 
+                    $buffer->next();
+                }
                 break;
         }
 
-        if (($result ?? null) === null) {
+        if ($result === null) {
             $this->rollbacks++;
-        }
-
-        return $result ?? null;
-    }
-
-    /**
-     * @param iterable $payload
-     * @return iterable|NodeInterface
-     */
-    private function filter(iterable $payload): iterable
-    {
-        if ($payload instanceof NodeInterface) {
-            return $payload;
-        }
-
-        $result = [];
-
-        foreach ($payload as $item) {
-            if ($item instanceof NodeInterface) {
-                $result[] = $item;
-            }
         }
 
         return $result;
     }
-
 }

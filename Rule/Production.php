@@ -18,7 +18,7 @@ use Phplrt\Contracts\Lexer\TokenInterface;
 abstract class Production extends Rule implements ProductionInterface
 {
     /**
-     * @var array
+     * @var array|int[]
      */
     public $sequence;
 
@@ -40,28 +40,9 @@ abstract class Production extends Rule implements ProductionInterface
      */
     public function __construct(array $sequence, \Closure $reducer = null)
     {
-        $this->withSequence($sequence);
+        $this->length = \count($sequence);
+        $this->sequence = $sequence;
         $this->reducer = $reducer;
-    }
-
-    /**
-     * @return array|int[]
-     */
-    public function getSequence(): array
-    {
-        return $this->sequence;
-    }
-
-    /**
-     * @param array $rules
-     * @return ProductionInterface|$this
-     */
-    public function withSequence(array $rules): ProductionInterface
-    {
-        $this->length = \count($rules);
-        $this->sequence = $rules;
-
-        return $this;
     }
 
     /**
@@ -70,11 +51,28 @@ abstract class Production extends Rule implements ProductionInterface
      * @param array|NodeInterface[]|TokenInterface[] $children
      * @return iterable|NodeInterface[]|NodeInterface
      */
-    public function reduce(array $children, int $offset, int $type): iterable
+    protected function toAst(array $children, int $offset, int $type): iterable
     {
         if ($this->reducer) {
             return ($this->reducer)($children, $offset, $type);
         }
+
+        return $children;
+    }
+
+    /**
+     * @param array|NodeInterface[] $children
+     * @param iterable|NodeInterface|TokenInterface $result
+     * @return array|NodeInterface[]
+     */
+    protected function merge(array $children, $result): array
+    {
+        if (\is_array($result)) {
+            /** @noinspection SlowArrayOperationsInLoopInspection */
+            return \array_merge($children, $result);
+        }
+
+        $children[] = $result;
 
         return $children;
     }

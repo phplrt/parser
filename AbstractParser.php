@@ -7,9 +7,8 @@
  */
 declare(strict_types=1);
 
-namespace Phplrt\Parser\Runtime;
+namespace Phplrt\Parser;
 
-use Phplrt\Ast\Anonymous;
 use Phplrt\Parser\Buffer\EagerBuffer;
 use Phplrt\Contracts\Ast\NodeInterface;
 use Phplrt\Parser\Buffer\BufferInterface;
@@ -22,7 +21,9 @@ use Phplrt\Parser\Exception\ParserRuntimeException;
 use Phplrt\Lexer\LexerInterface as PhplrtLexerInterface;
 use Phplrt\Contracts\Lexer\Exception\LexerExceptionInterface;
 use Phplrt\Contracts\Lexer\Exception\RuntimeExceptionInterface;
+use Phplrt\Contracts\Parser\Exception\ParserExceptionInterface;
 use Phplrt\Contracts\Source\Exception\NotReadableExceptionInterface;
+use Phplrt\Contracts\Parser\Exception\RuntimeExceptionInterface as ParserRuntimeExceptionInterface;
 
 /**
  * Class AbstractParser
@@ -30,16 +31,41 @@ use Phplrt\Contracts\Source\Exception\NotReadableExceptionInterface;
 abstract class AbstractParser implements ParserInterface
 {
     /**
+     * Contains the readonly number of returns to the previous state in the
+     * case of an incorrectly selected chain of rules.
+     *
+     * @var int
+     */
+    public $rollbacks = 0;
+
+    /**
+     * Contains the readonly number of rules which were processed.
+     *
+     * @var int
+     */
+    public $reduces = 0;
+
+    /**
+     * Contains a token identifier that is excluded from analysis.
+     *
      * @var int
      */
     protected $skip = TokenInterface::TYPE_SKIP;
 
     /**
+     * Contains a token identifier that marks the end of the source.
+     *
      * @var int
      */
     protected $eoi = TokenInterface::TYPE_END_OF_INPUT;
 
     /**
+     * Contains the readonly token object which was last successfully processed
+     * in the rules chain.
+     *
+     * It is required so that in case of errors it is possible to report that
+     * it was on it that the problem arose.
+     *
      * @var TokenInterface
      */
     protected $token;
@@ -60,37 +86,75 @@ abstract class AbstractParser implements ParserInterface
     }
 
     /**
-     * @param int $state
-     * @param int $offset
-     * @param array|NodeInterface[]|TokenInterface[] $children
-     * @return NodeInterface
+     * A helper method that converts the returned data to the correct format.
+     * <code>
+     *  class MyParser extends AbstractParser
+     *  {
+     *      public function parse(ReadableInterface $src): iterable
+     *      {
+     *          return $this->normalize(
+     *              $this->doParse($src)
+     *          );
+     *      }
+     *  }
+     * </code>
+     *
+     * @param iterable|NodeInterface|NodeInterface[] $payload
+     * @return iterable|NodeInterface|NodeInterface[]
      */
-    protected function create(int $state, int $offset, array $children = []): NodeInterface
+    protected function normalize(iterable $payload): iterable
     {
-        return new Anonymous($state, [
-            'offset' => $offset,
-        ], $children);
+        if ($payload instanceof NodeInterface) {
+            return $payload;
+        }
+
+        $result = [];
+
+        foreach ($payload as $item) {
+            if ($item instanceof NodeInterface) {
+                $result[] = $item;
+            }
+        }
+
+        return $result;
     }
 
     /**
+     * A method that performs lexical analysis from the passed sources,
+     * converts lexical analysis errors into parser errors and returns a
+     * token buffer.
+     *
      * @param ReadableInterface $src
      * @return BufferInterface
-     * @throws ParserException
-     * @throws ParserRuntimeException
+     * @throws ParserExceptionInterface
+     * @throws ParserRuntimeExceptionInterface
      * @throws NotReadableExceptionInterface
      */
     protected function lex(ReadableInterface $src): BufferInterface
     {
         try {
-            return new EagerBuffer($this->streamOf($src));
+            return $this->buffered($this->streamOf($src));
         } catch (RuntimeExceptionInterface $e) {
-            throw $this->unexpectedToken($src, $e->getToken());
+            throw $this->unexpectedToken($src, $e->getToken())->withToken($e->getToken());
         } catch (\Exception|LexerExceptionInterface $e) {
             throw new ParserException($e->getMessage(), $e->getCode(), $e);
         }
     }
 
     /**
+     * Method that converts token stream to buffer of lexemes.
+     *
+     * @param \Generator|TokenInterface[] $stream
+     * @return BufferInterface|TokenInterface[]
+     */
+    protected function buffered(\Generator $stream): BufferInterface
+    {
+        return new EagerBuffer($stream);
+    }
+
+    /**
+     * Returns a stream of tokens, excluding ignored ones.
+     *
      * @param ReadableInterface $src
      * @return \Generator
      * @throws LexerExceptionInterface
@@ -106,6 +170,8 @@ abstract class AbstractParser implements ParserInterface
     }
 
     /**
+     * Helper method that returns an error during parsing.
+     *
      * @param ReadableInterface $src
      * @param TokenInterface $token
      * @return ParserRuntimeException
@@ -113,26 +179,11 @@ abstract class AbstractParser implements ParserInterface
      */
     protected function unexpectedToken(ReadableInterface $src, TokenInterface $token): ParserRuntimeException
     {
-        $message = \sprintf('Syntax error, unexpected %s (%s)', $token, $this->nameOf($token));
+        $message = \sprintf('Syntax error, unexpected %s', $token);
 
         $exception = new ParserRuntimeException($message);
         $exception->throwsIn($src, $token->getOffset());
 
         return $exception;
-    }
-
-    /**
-     * @param TokenInterface $token
-     * @return string
-     */
-    protected function nameOf(TokenInterface $token): string
-    {
-        if ($this->lexer instanceof PhplrtLexerInterface) {
-            return $this->lexer->nameOf($token->getType());
-        }
-
-        $hex = '0x' . \str_pad(\dechex(\abs($token->getType())), 4, '0', \STR_PAD_LEFT);
-
-        return $token->getType() > 0 ? $hex : '-' . $hex;
     }
 }

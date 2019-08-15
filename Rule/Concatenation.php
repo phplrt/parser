@@ -23,7 +23,7 @@ class Concatenation extends Production
      * @param \Closure $reduce
      * @return iterable|null
      */
-    public function match(BufferInterface $buffer, int $type, int $offset, \Closure $reduce): ?iterable
+    public function reduce(BufferInterface $buffer, int $type, int $offset, \Closure $reduce): ?iterable
     {
         [$revert, $children] = [$buffer->key(), []];
 
@@ -34,14 +34,9 @@ class Concatenation extends Production
                 return null;
             }
 
-            if (\is_array($result)) {
-                /** @noinspection SlowArrayOperationsInLoopInspection */
-                $children = \array_merge($children, $result);
-            } else {
-                $children[] = $result;
-            }
+            $children = $this->merge($children, $result);
         }
 
-        return $this->reduce($children, $offset, $type);
+        return $this->toAst($children, $offset, $type);
     }
 }

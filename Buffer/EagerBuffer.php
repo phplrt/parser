@@ -91,16 +91,4 @@ class EagerBuffer implements BufferInterface
     {
         $this->current = $position;
     }
-
-    /**
-     * @return string
-     */
-    public function __toString(): string
-    {
-        try {
-            return (string)$this->current();
-        } catch (\Throwable $e) {
-            return \json_encode($this->current());
-        }
-    }
 }

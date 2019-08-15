@@ -21,5 +21,5 @@ interface TerminalInterface extends RuleInterface
      * @param BufferInterface $buffer
      * @return null|mixed
      */
-    public function match(BufferInterface $buffer): ?TokenInterface;
+    public function reduce(BufferInterface $buffer): ?TokenInterface;
 }
