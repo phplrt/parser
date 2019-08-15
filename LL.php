@@ -61,11 +61,6 @@ class LL extends AbstractParser
         'or disabling the extension.';
 
     /**
-     * @var int
-     */
-    private $state = 0;
-
-    /**
      * @var array|RuleInterface[]
      */
     private $rules;
@@ -78,11 +73,21 @@ class LL extends AbstractParser
      */
     public function __construct(LexerInterface $lexer, array $rules)
     {
-        $this->detectDebuggers();
-
         parent::__construct($lexer);
 
-        $this->rules = $rules;
+        $this->detectDebuggers();
+        $this->boot($this->rules = $rules);
+    }
+
+    /**
+     * @param array $rules
+     * @return void
+     */
+    private function boot(array $rules): void
+    {
+        if ($this->initial === null) {
+            $this->initial = \array_key_first($rules);
+        }
     }
 
     /**
@@ -107,12 +112,12 @@ class LL extends AbstractParser
 
         $buffer = $this->lex($src);
 
-        if (($result = $this->reduce($buffer, $this->state)) === null) {
-            throw $this->unexpectedToken($src, $this->token ?? $buffer->current());
+        if (($result = $this->reduce($buffer, $this->initial)) === null) {
+            throw $this->error($src, $this->token ?? $buffer->current());
         }
 
         if ($buffer->current()->getType() !== $this->eoi) {
-            throw $this->unexpectedToken($src, $buffer->current());
+            throw $this->error($src, $buffer->current());
         }
 
         return $this->normalize($result);

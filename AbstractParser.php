@@ -18,7 +18,6 @@ use Phplrt\Contracts\Parser\ParserInterface;
 use Phplrt\Parser\Exception\ParserException;
 use Phplrt\Contracts\Source\ReadableInterface;
 use Phplrt\Parser\Exception\ParserRuntimeException;
-use Phplrt\Lexer\LexerInterface as PhplrtLexerInterface;
 use Phplrt\Contracts\Lexer\Exception\LexerExceptionInterface;
 use Phplrt\Contracts\Lexer\Exception\RuntimeExceptionInterface;
 use Phplrt\Contracts\Parser\Exception\ParserExceptionInterface;
@@ -69,6 +68,20 @@ abstract class AbstractParser implements ParserInterface
      * @var TokenInterface
      */
     protected $token;
+
+    /**
+     * The maximum number of tokens (lexemes) that are stored in the buffer.
+     *
+     * @var int
+     */
+    protected $buffered = 100;
+
+    /**
+     * The initial identifier of the rule with which parsing begins.
+     *
+     * @var int|null
+     */
+    protected $initial;
 
     /**
      * @var LexerInterface
@@ -133,9 +146,9 @@ abstract class AbstractParser implements ParserInterface
     protected function lex(ReadableInterface $src): BufferInterface
     {
         try {
-            return $this->buffered($this->streamOf($src));
+            return $this->buffered($this->streamOf($src), $this->buffered);
         } catch (RuntimeExceptionInterface $e) {
-            throw $this->unexpectedToken($src, $e->getToken())->withToken($e->getToken());
+            throw $this->error($src, $e->getToken());
         } catch (\Exception|LexerExceptionInterface $e) {
             throw new ParserException($e->getMessage(), $e->getCode(), $e);
         }
@@ -145,9 +158,10 @@ abstract class AbstractParser implements ParserInterface
      * Method that converts token stream to buffer of lexemes.
      *
      * @param \Generator|TokenInterface[] $stream
+     * @param int $size
      * @return BufferInterface|TokenInterface[]
      */
-    protected function buffered(\Generator $stream): BufferInterface
+    protected function buffered(\Generator $stream, int $size): BufferInterface
     {
         return new EagerBuffer($stream);
     }
@@ -174,15 +188,16 @@ abstract class AbstractParser implements ParserInterface
      *
      * @param ReadableInterface $src
      * @param TokenInterface $token
-     * @return ParserRuntimeException
+     * @return ParserRuntimeExceptionInterface
      * @throws NotReadableExceptionInterface
      */
-    protected function unexpectedToken(ReadableInterface $src, TokenInterface $token): ParserRuntimeException
+    protected function error(ReadableInterface $src, TokenInterface $token): ParserRuntimeExceptionInterface
     {
         $message = \sprintf('Syntax error, unexpected %s', $token);
 
         $exception = new ParserRuntimeException($message);
         $exception->throwsIn($src, $token->getOffset());
+        $exception->withToken($token);
 
         return $exception;
     }
