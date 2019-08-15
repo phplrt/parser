@@ -36,6 +36,8 @@ class Repetition extends Concatenation
      */
     public function __construct(array $sequence, float $gte, float $lte = \INF, \Closure $reducer = null)
     {
+        \assert($lte >= $gte, 'Min repetitions count must be greater or equal than max repetitions');
+
         parent::__construct($sequence, $reducer);
 
         $this->gte = $gte;
