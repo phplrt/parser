@@ -1,6 +1,6 @@
 <?php
 /**
- * This file is part of parser package.
+ * This file is part of Phplrt package.
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.

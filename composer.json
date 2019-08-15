@@ -39,9 +39,8 @@
         }
     },
     "require-dev": {
-        "nikic/php-parser": "~4.2",
-        "devster/ubench": "~2.0",
         "symfony/var-dumper": "~4.0",
+        "phplrt/visitor": "~2.0|2.0.x-dev",
         "phplrt/compiler": "~2.0|2.0.x-dev"
     },
     "provide": {
