@@ -53,6 +53,14 @@ use Phplrt\Contracts\Source\Exception\NotReadableExceptionInterface;
 class LL extends AbstractParser
 {
     /**
+     * @var string
+     */
+    private const ERROR_XDEBUG_NOTICE_MESSAGE =
+        'Please note that if Xdebug is enabled, a "Fatal error: Maximum function nesting level of "%d" ' .
+        'reached, aborting!" errors may occur. In the second case, it is worth increasing the ini value ' .
+        'or disabling the extension.';
+
+    /**
      * @var int
      */
     private $state = 0;
@@ -70,9 +78,23 @@ class LL extends AbstractParser
      */
     public function __construct(LexerInterface $lexer, array $rules)
     {
+        $this->detectDebuggers();
+
         parent::__construct($lexer);
 
         $this->rules = $rules;
+    }
+
+    /**
+     * @return void
+     */
+    private function detectDebuggers(): void
+    {
+        if (\function_exists('\\xdebug_is_enabled')) {
+            @\trigger_error(\vsprintf(self::ERROR_XDEBUG_NOTICE_MESSAGE, [
+                \ini_get('xdebug.max_nesting_level')
+            ]));
+        }
     }
 
     /**
