@@ -17,6 +17,24 @@ use Phplrt\Parser\Buffer\BufferInterface;
 class Concatenation extends Production
 {
     /**
+     * @var array|int[]
+     */
+    private $sequence;
+
+    /**
+     * Rule constructor.
+     *
+     * @param array $sequence
+     * @param \Closure $reducer|null
+     */
+    public function __construct(array $sequence, \Closure $reducer = null)
+    {
+        $this->sequence = $sequence;
+
+        parent::__construct($reducer);
+    }
+
+    /**
      * @param BufferInterface $buffer
      * @param int $type
      * @param int $offset
@@ -38,5 +56,13 @@ class Concatenation extends Production
         }
 
         return $this->toAst($children, $offset, $type);
+    }
+
+    /**
+     * @return string
+     */
+    public function __toString(): string
+    {
+        return '[' . \implode(', ', $this->sequence) . ']';
     }
 }

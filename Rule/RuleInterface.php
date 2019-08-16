@@ -9,14 +9,13 @@ declare(strict_types=1);
 
 namespace Phplrt\Parser\Rule;
 
-use Ds\Stack;
-use Phplrt\Contracts\Ast\NodeInterface;
-use Phplrt\Parser\Buffer\BufferInterface;
-use Phplrt\Contracts\Lexer\TokenInterface;
-
 /**
  * Interface RuleInterface
  */
 interface RuleInterface
 {
+    /**
+     * @return string
+     */
+    public function __toString(): string;
 }

@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace Phplrt\Parser;
 
 use Phplrt\Parser\Buffer\EagerBuffer;
+use Phplrt\Parser\Rule\RuleInterface;
 use Phplrt\Contracts\Ast\NodeInterface;
 use Phplrt\Parser\Buffer\BufferInterface;
 use Phplrt\Contracts\Lexer\TokenInterface;
@@ -43,6 +44,13 @@ abstract class AbstractParser implements ParserInterface
      * @var int
      */
     public $reduces = 0;
+
+    /**
+     * Contains the readonly number of recursion depth.
+     *
+     * @var int
+     */
+    public $depth = 0;
 
     /**
      * Contains a token identifier that is excluded from analysis.

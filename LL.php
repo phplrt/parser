@@ -132,7 +132,8 @@ class LL extends AbstractParser
     {
         [$rule, $token, $result] = [$this->rules[$state], $buffer->current(), null];
 
-        $this->reduces++;
+        ++$this->reduces;
+        ++$this->depth;
 
         switch (true) {
             case $token->getType() === $this->eoi:
@@ -157,6 +158,8 @@ class LL extends AbstractParser
         if ($result === null) {
             $this->rollbacks++;
         }
+
+        --$this->depth;
 
         return $result;
     }

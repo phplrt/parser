@@ -18,16 +18,6 @@ use Phplrt\Contracts\Lexer\TokenInterface;
 abstract class Production extends Rule implements ProductionInterface
 {
     /**
-     * @var array|int[]
-     */
-    public $sequence;
-
-    /**
-     * @var int
-     */
-    private $length;
-
-    /**
      * @var \Closure
      */
     private $reducer;
@@ -35,13 +25,10 @@ abstract class Production extends Rule implements ProductionInterface
     /**
      * Rule constructor.
      *
-     * @param array $sequence
      * @param \Closure $reducer|null
      */
-    public function __construct(array $sequence, \Closure $reducer = null)
+    public function __construct(\Closure $reducer = null)
     {
-        $this->length = \count($sequence);
-        $this->sequence = $sequence;
         $this->reducer = $reducer;
     }
 

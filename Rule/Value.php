@@ -46,4 +46,12 @@ class Value extends Rule implements TerminalInterface
 
         return null;
     }
+
+    /**
+     * @return string
+     */
+    public function __toString(): string
+    {
+        return 'like "' . $this->value . '"';
+    }
 }

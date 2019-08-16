@@ -14,7 +14,7 @@ use Phplrt\Parser\Buffer\BufferInterface;
 /**
  * Class Repetition
  */
-class Repetition extends Concatenation
+class Repetition extends Production
 {
     /**
      * @var int|float
@@ -27,19 +27,25 @@ class Repetition extends Concatenation
     private $lte;
 
     /**
+     * @var int
+     */
+    private $rule;
+
+    /**
      * Repetition constructor.
      *
-     * @param array $sequence
+     * @param int $rule
      * @param int|float $gte
      * @param int|float $lte
      * @param \Closure|null $reducer
      */
-    public function __construct(array $sequence, float $gte, float $lte = \INF, \Closure $reducer = null)
+    public function __construct(int $rule, float $gte = 0, float $lte = \INF, \Closure $reducer = null)
     {
         \assert($lte >= $gte, 'Min repetitions count must be greater or equal than max repetitions');
 
-        parent::__construct($sequence, $reducer);
+        parent::__construct($reducer);
 
+        $this->rule = $rule;
         $this->gte = $gte;
         $this->lte = $lte;
     }
@@ -61,7 +67,7 @@ class Repetition extends Concatenation
                 $buffer->key(),
             ];
 
-            $result = parent::reduce($buffer, $type, $offset, $reduce);
+            $result = $reduce($this->rule);
 
             if ($result === null && ! $valid) {
                 $buffer->seek($rollback);
@@ -72,6 +78,14 @@ class Repetition extends Concatenation
             $children = $this->merge($children, $result);
         } while ($result !== null && ++$iterations);
 
-        return $children;
+        return $this->toAst($this->merge([], $children), $type, $offset);
+    }
+
+    /**
+     * @return string
+     */
+    public function __toString(): string
+    {
+        return $this->rule . ' { ' . $this->gte . ' ... ' . $this->lte . ' }';
     }
 }

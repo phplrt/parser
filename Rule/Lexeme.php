@@ -46,4 +46,12 @@ class Lexeme extends Rule implements TerminalInterface
 
         return null;
     }
+
+    /**
+     * @return string
+     */
+    public function __toString(): string
+    {
+        return 'is ' . $this->token;
+    }
 }
