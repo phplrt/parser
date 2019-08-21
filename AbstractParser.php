@@ -156,6 +156,8 @@ abstract class AbstractParser implements ParserInterface
 
         try {
             $buffer = $this->buffer($this->tokenize($src), $this->buffer);
+
+            $this->token = $buffer->current();
         } catch (LexerRuntimeExceptionInterface $e) {
             throw $this->lexError($e->getToken());
         } catch (\Exception|LexerExceptionInterface $e) {
@@ -232,10 +234,16 @@ abstract class AbstractParser implements ParserInterface
                 break;
 
             case $rule instanceof TerminalInterface:
-                $this->token = $buffer->current();
-
                 if ($result = $rule->reduce($buffer)) {
                     $buffer->next();
+                }
+
+                //
+                // Capture the most recently processed token.
+                // In case of a syntax error, it will be displayed as incorrect.
+                //
+                if ($buffer->current()->getOffset() > $this->token->getOffset()) {
+                    $this->token = $buffer->current();
                 }
 
                 break;
