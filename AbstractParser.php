@@ -281,9 +281,9 @@ abstract class AbstractParser implements ParserInterface
 
     /**
      * @param TokenInterface $token
-     * @return ParserRuntimeException
+     * @return ParserRuntimeException|\Exception
      */
-    protected function syntaxError(TokenInterface $token): ParserRuntimeException
+    protected function syntaxError(TokenInterface $token): \Exception
     {
         return new ParserRuntimeException(\sprintf(self::ERROR_UNEXPECTED, $token));
     }
