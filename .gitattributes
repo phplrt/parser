@@ -1,11 +1,3 @@
-#
-# Language Formats
-#
-* text=auto
-*.pp linguist-language=EBNF
-*.pp2 linguist-language=EBNF
-
-
 /.github export-ignore
 /.multirepo export-ignore
 /docs export-ignore

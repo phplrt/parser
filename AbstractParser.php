@@ -13,23 +13,72 @@ use Phplrt\Parser\Buffer\EagerBuffer;
 use Phplrt\Parser\Rule\RuleInterface;
 use Phplrt\Contracts\Ast\NodeInterface;
 use Phplrt\Parser\Buffer\BufferInterface;
+use Phplrt\Parser\Rule\TerminalInterface;
 use Phplrt\Contracts\Lexer\TokenInterface;
 use Phplrt\Contracts\Lexer\LexerInterface;
+use Phplrt\Parser\Rule\ProductionInterface;
 use Phplrt\Contracts\Parser\ParserInterface;
 use Phplrt\Parser\Exception\ParserException;
-use Phplrt\Contracts\Source\ReadableInterface;
 use Phplrt\Parser\Exception\ParserRuntimeException;
 use Phplrt\Contracts\Lexer\Exception\LexerExceptionInterface;
-use Phplrt\Contracts\Lexer\Exception\RuntimeExceptionInterface;
-use Phplrt\Contracts\Parser\Exception\ParserExceptionInterface;
-use Phplrt\Contracts\Source\Exception\NotReadableExceptionInterface;
-use Phplrt\Contracts\Parser\Exception\RuntimeExceptionInterface as ParserRuntimeExceptionInterface;
+use Phplrt\Contracts\Lexer\Exception\RuntimeExceptionInterface as LexerRuntimeExceptionInterface;
 
 /**
- * Class AbstractParser
+ * A LL(k) recurrence recursive descent parser implementation.
+ *
+ * Is a kind of top-down parser built from a set of mutually recursive methods
+ * defined in:
+ *  - Phplrt\Parser\Rule\ProductionInterface::reduce()
+ *  - Phplrt\Parser\Rule\TerminalInterface::reduce()
+ * Where each such class implements one of the terminals or productions of the
+ * grammar. Thus the structure of the resulting program closely mirrors that
+ * of the grammar it recognizes.
+ *
+ * A "recurrence" means that instead of predicting, the parser simply tries to
+ * apply all the alternative rules in order, until one of the attempts succeeds.
+ *
+ * Such a parser may require exponential work time, and does not always
+ * guarantee completion, depending on the grammar.
+ *
+ * Vulnerable to left recursion, like:
+ * <code>
+ *      Digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+ *      Operator = "+" | "-" | "*" | "/" ;
+ *      Number = Digit { Digit } ;
+ *
+ *      Expression = Number | Number Operator ;
+ *      (*            ^^^^^^   ^^^^^^
+ *          In this case, the grammar is incorrect and should be replaced by:
+ *
+ *          Expression = Number { Operator } ;
+ *      *)
+ * </code>
+ *
+ * @property-read int $rollbacks
+ * @property-read int $reduces
+ * @property-read int $depth
+ * @property-read TokenInterface $token
  */
 abstract class AbstractParser implements ParserInterface
 {
+    /**
+     * @var string
+     */
+    private const ERROR_XDEBUG_NOTICE_MESSAGE =
+        'Please note that if Xdebug is enabled, a "Fatal error: Maximum function nesting level of "%d" ' .
+        'reached, aborting!" errors may occur. In the second case, it is worth increasing the ini value ' .
+        'or disabling the extension.';
+
+    /**
+     * @var string
+     */
+    private const ERROR_UNEXPECTED = 'Syntax error, unexpected %s';
+
+    /**
+     * @var string
+     */
+    private const ERROR_UNRECOGNIZED = 'Syntax error, unrecognized lexeme %s';
+
     /**
      * Contains the readonly number of returns to the previous state in the
      * case of an incorrectly selected chain of rules.
@@ -53,6 +102,17 @@ abstract class AbstractParser implements ParserInterface
     public $depth = 0;
 
     /**
+     * Contains the readonly token object which was last successfully processed
+     * in the rules chain.
+     *
+     * It is required so that in case of errors it is possible to report that
+     * it was on it that the problem arose.
+     *
+     * @var TokenInterface|null
+     */
+    public $token;
+
+    /**
      * Contains a token identifier that is excluded from analysis.
      *
      * @var int
@@ -67,29 +127,23 @@ abstract class AbstractParser implements ParserInterface
     protected $eoi = TokenInterface::TYPE_END_OF_INPUT;
 
     /**
-     * Contains the readonly token object which was last successfully processed
-     * in the rules chain.
-     *
-     * It is required so that in case of errors it is possible to report that
-     * it was on it that the problem arose.
-     *
-     * @var TokenInterface
-     */
-    protected $token;
-
-    /**
      * The maximum number of tokens (lexemes) that are stored in the buffer.
      *
      * @var int
      */
-    protected $buffered = 100;
+    protected $buffer = 100;
 
     /**
      * The initial identifier of the rule with which parsing begins.
      *
-     * @var int|null
+     * @var int
      */
-    protected $initial;
+    protected $initial = 0;
+
+    /**
+     * @var array|RuleInterface[]
+     */
+    protected $rules = [];
 
     /**
      * @var LexerInterface
@@ -97,13 +151,150 @@ abstract class AbstractParser implements ParserInterface
     private $lexer;
 
     /**
-     * AbstractParser constructor.
+     * Parser constructor.
      *
      * @param LexerInterface $lexer
      */
     public function __construct(LexerInterface $lexer)
     {
         $this->lexer = $lexer;
+
+        $this->detectDebuggers();
+    }
+
+    /**
+     * @return void
+     */
+    private function detectDebuggers(): void
+    {
+        if (\function_exists('\\xdebug_is_enabled')) {
+            @\trigger_error(\vsprintf(self::ERROR_XDEBUG_NOTICE_MESSAGE, [
+                \ini_get('xdebug.max_nesting_level'),
+            ]));
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function parse($src): iterable
+    {
+        $this->rollbacks = $this->reduces = 0;
+
+        try {
+            $buffer = $this->buffer($this->tokenize($src), $this->buffer);
+        } catch (LexerRuntimeExceptionInterface $e) {
+            throw $this->lexError($e->getToken());
+        } catch (\Exception|LexerExceptionInterface $e) {
+            throw new ParserException($e->getMessage(), $e->getCode(), $e);
+        }
+
+        if (($result = $this->reduce($buffer, $this->initial)) === null) {
+            throw $this->syntaxError($this->getToken($buffer));
+        }
+
+        if ($buffer->current()->getType() !== $this->eoi) {
+            throw $this->syntaxError($this->getToken($buffer));
+        }
+
+        return $this->normalize($result);
+    }
+
+    /**
+     * Method that converts token stream to buffer of lexemes.
+     *
+     * @param \Generator|TokenInterface[] $stream
+     * @param int $size
+     * @return BufferInterface|TokenInterface[]
+     */
+    protected function buffer(\Generator $stream, int $size): BufferInterface
+    {
+        return new EagerBuffer($stream);
+    }
+
+    /**
+     * Returns a stream of tokens, excluding ignored ones.
+     *
+     * @param string|resource $src
+     * @return \Generator
+     * @throws LexerExceptionInterface
+     * @throws LexerRuntimeExceptionInterface
+     */
+    private function tokenize($src): \Generator
+    {
+        foreach ($this->lexer->lex($src) as $token) {
+            if ($token->getType() !== $this->skip) {
+                yield $token;
+            }
+        }
+    }
+
+    /**
+     * @param TokenInterface $token
+     * @return \Exception|ParserRuntimeException
+     */
+    protected function lexError(TokenInterface $token): \Exception
+    {
+        return new ParserRuntimeException(\sprintf(self::ERROR_UNRECOGNIZED, $token));
+    }
+
+    /**
+     * @param BufferInterface $buffer
+     * @param int $state
+     * @return iterable|TokenInterface|null
+     */
+    private function reduce(BufferInterface $buffer, int $state)
+    {
+        [$rule, $token, $result] = [$this->rules[$state], $buffer->current(), null];
+
+        ++$this->reduces;
+        ++$this->depth;
+
+        switch (true) {
+            case $token->getType() === $this->eoi:
+                $result = null;
+                break;
+
+            case $rule instanceof ProductionInterface:
+                $result = $rule->reduce($buffer, $state, $token->getOffset(), function (int $state) use ($buffer) {
+                    return $this->reduce($buffer, $state);
+                });
+                break;
+
+            case $rule instanceof TerminalInterface:
+                if ($result = $rule->reduce($buffer)) {
+                    $this->token = $result;
+
+                    $buffer->next();
+                }
+                break;
+        }
+
+        if ($result === null) {
+            $this->rollbacks++;
+        }
+
+        --$this->depth;
+
+        return $result;
+    }
+
+    /**
+     * @param TokenInterface $token
+     * @return ParserRuntimeException
+     */
+    protected function syntaxError(TokenInterface $token): ParserRuntimeException
+    {
+        return new ParserRuntimeException(\sprintf(self::ERROR_UNEXPECTED, $token));
+    }
+
+    /**
+     * @param BufferInterface $buffer
+     * @return TokenInterface
+     */
+    private function getToken(BufferInterface $buffer): TokenInterface
+    {
+        return $this->token ?? $buffer->current();
     }
 
     /**
@@ -111,7 +302,7 @@ abstract class AbstractParser implements ParserInterface
      * <code>
      *  class MyParser extends AbstractParser
      *  {
-     *      public function parse(ReadableInterface $src): iterable
+     *      public function parse($src): iterable
      *      {
      *          return $this->normalize(
      *              $this->doParse($src)
@@ -138,75 +329,5 @@ abstract class AbstractParser implements ParserInterface
         }
 
         return $result;
-    }
-
-    /**
-     * A method that performs lexical analysis from the passed sources,
-     * converts lexical analysis errors into parser errors and returns a
-     * token buffer.
-     *
-     * @param ReadableInterface $src
-     * @return BufferInterface
-     * @throws ParserExceptionInterface
-     * @throws ParserRuntimeExceptionInterface
-     * @throws NotReadableExceptionInterface
-     */
-    protected function lex(ReadableInterface $src): BufferInterface
-    {
-        try {
-            return $this->buffered($this->streamOf($src), $this->buffered);
-        } catch (RuntimeExceptionInterface $e) {
-            throw $this->error($src, $e->getToken());
-        } catch (\Exception|LexerExceptionInterface $e) {
-            throw new ParserException($e->getMessage(), $e->getCode(), $e);
-        }
-    }
-
-    /**
-     * Method that converts token stream to buffer of lexemes.
-     *
-     * @param \Generator|TokenInterface[] $stream
-     * @param int $size
-     * @return BufferInterface|TokenInterface[]
-     */
-    protected function buffered(\Generator $stream, int $size): BufferInterface
-    {
-        return new EagerBuffer($stream);
-    }
-
-    /**
-     * Returns a stream of tokens, excluding ignored ones.
-     *
-     * @param ReadableInterface $src
-     * @return \Generator
-     * @throws LexerExceptionInterface
-     * @throws RuntimeExceptionInterface
-     */
-    private function streamOf(ReadableInterface $src): \Generator
-    {
-        foreach ($this->lexer->lex($src) as $token) {
-            if ($token->getType() !== $this->skip) {
-                yield $token;
-            }
-        }
-    }
-
-    /**
-     * Helper method that returns an error during parsing.
-     *
-     * @param ReadableInterface $src
-     * @param TokenInterface $token
-     * @return ParserRuntimeExceptionInterface
-     * @throws NotReadableExceptionInterface
-     */
-    protected function error(ReadableInterface $src, TokenInterface $token): ParserRuntimeExceptionInterface
-    {
-        $message = \sprintf('Syntax error, unexpected %s', $token);
-
-        $exception = new ParserRuntimeException($message);
-        $exception->throwsIn($src, $token->getOffset());
-        $exception->withToken($token);
-
-        return $exception;
     }
 }
