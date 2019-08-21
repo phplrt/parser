@@ -53,11 +53,6 @@ use Phplrt\Contracts\Lexer\Exception\RuntimeExceptionInterface as LexerRuntimeEx
  *          Expression = Number { Operator } ;
  *      *)
  * </code>
- *
- * @property-read int $rollbacks
- * @property-read int $reduces
- * @property-read int $depth
- * @property-read TokenInterface $token
  */
 abstract class AbstractParser implements ParserInterface
 {
@@ -80,28 +75,6 @@ abstract class AbstractParser implements ParserInterface
     private const ERROR_UNRECOGNIZED = 'Syntax error, unrecognized lexeme %s';
 
     /**
-     * Contains the readonly number of returns to the previous state in the
-     * case of an incorrectly selected chain of rules.
-     *
-     * @var int
-     */
-    public $rollbacks = 0;
-
-    /**
-     * Contains the readonly number of rules which were processed.
-     *
-     * @var int
-     */
-    public $reduces = 0;
-
-    /**
-     * Contains the readonly number of recursion depth.
-     *
-     * @var int
-     */
-    public $depth = 0;
-
-    /**
      * Contains the readonly token object which was last successfully processed
      * in the rules chain.
      *
@@ -110,7 +83,7 @@ abstract class AbstractParser implements ParserInterface
      *
      * @var TokenInterface|null
      */
-    public $token;
+    private $token;
 
     /**
      * Contains a token identifier that is excluded from analysis.
@@ -179,7 +152,7 @@ abstract class AbstractParser implements ParserInterface
      */
     public function parse($src): iterable
     {
-        $this->rollbacks = $this->reduces = 0;
+        $this->token = null;
 
         try {
             $buffer = $this->buffer($this->tokenize($src), $this->buffer);
@@ -247,9 +220,6 @@ abstract class AbstractParser implements ParserInterface
     {
         [$rule, $token, $result] = [$this->rules[$state], $buffer->current(), null];
 
-        ++$this->reduces;
-        ++$this->depth;
-
         switch (true) {
             case $token->getType() === $this->eoi:
                 $result = null;
@@ -269,12 +239,6 @@ abstract class AbstractParser implements ParserInterface
                 }
                 break;
         }
-
-        if ($result === null) {
-            $this->rollbacks++;
-        }
-
-        --$this->depth;
 
         return $result;
     }
