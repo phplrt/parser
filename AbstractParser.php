@@ -232,11 +232,12 @@ abstract class AbstractParser implements ParserInterface
                 break;
 
             case $rule instanceof TerminalInterface:
-                if ($result = $rule->reduce($buffer)) {
-                    $this->token = $result;
+                $this->token = $buffer->current();
 
+                if ($result = $rule->reduce($buffer)) {
                     $buffer->next();
                 }
+
                 break;
         }
 
@@ -295,3 +296,42 @@ abstract class AbstractParser implements ParserInterface
         return $result;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
