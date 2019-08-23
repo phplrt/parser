@@ -9,12 +9,11 @@ declare(strict_types=1);
 
 namespace Phplrt\Parser\Exception;
 
-use Phplrt\Contracts\Parser\Exception\ParserExceptionInterface;
+use Phplrt\Contracts\Parser\Exception\RuntimeExceptionInterface;
 
 /**
- * Class ParserException
+ * Class ParserRuntimeException
  */
-class ParserException extends \Exception implements ParserExceptionInterface
+class ParserRuntimeException extends ParserException implements RuntimeExceptionInterface
 {
-
 }

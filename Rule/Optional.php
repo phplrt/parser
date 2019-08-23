@@ -12,26 +12,26 @@ namespace Phplrt\Parser\Rule;
 use Phplrt\Parser\Buffer\BufferInterface;
 
 /**
- * Class Alternation
+ * Class Optional
  */
-class Alternation extends Production
+class Optional extends Production
 {
     /**
-     * @var array|int[]
+     * @var int
      */
-    private $sequence;
+    private $rule;
 
     /**
-     * Rule constructor.
+     * Optional constructor.
      *
-     * @param array $sequence
-     * @param \Closure $reducer|null
+     * @param int $rule
+     * @param \Closure|null $reducer
      */
-    public function __construct(array $sequence, \Closure $reducer = null)
+    public function __construct(int $rule, \Closure $reducer = null)
     {
-        $this->sequence = $sequence;
-
         parent::__construct($reducer);
+
+        $this->rule = $rule;
     }
 
     /**
@@ -43,13 +43,15 @@ class Alternation extends Production
      */
     public function reduce(BufferInterface $buffer, int $type, int $offset, \Closure $reduce): ?iterable
     {
-        foreach ($this->sequence as $rule) {
-            if (($value = $reduce($rule)) !== null) {
-                return $this->toAst($this->merge([], $value), $offset, $type);
-            }
+        $rollback = $buffer->key();
+
+        if ($result = $reduce($this->rule)) {
+            return $this->toAst($this->merge([], $result), $offset, $type);
         }
 
-        return null;
+        $buffer->seek($rollback);
+
+        return [];
     }
 
     /**
@@ -57,6 +59,6 @@ class Alternation extends Production
      */
     public function __toString(): string
     {
-        return '[' . \implode(' | ', $this->sequence) . ']';
+        return $this->rule . '?';
     }
 }
