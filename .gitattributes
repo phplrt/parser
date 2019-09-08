@@ -1,3 +1,8 @@
+* text=auto
+*.pp linguist-language=Antlr
+*.pp2 linguist-language=Antlr
+
+
 /.github export-ignore
 /.multirepo export-ignore
 /docs export-ignore

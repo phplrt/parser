@@ -9,17 +9,13 @@ declare(strict_types=1);
 
 namespace Phplrt\Parser\Rule;
 
-use Phplrt\Parser\Buffer\BufferInterface;
-use Phplrt\Contracts\Lexer\TokenInterface;
-
 /**
  * Interface TerminalInterface
  */
 interface TerminalInterface extends RuleInterface
 {
     /**
-     * @param BufferInterface $buffer
-     * @return null|mixed
+     * @return bool
      */
-    public function reduce(BufferInterface $buffer): ?TokenInterface;
+    public function isKeep(): bool;
 }

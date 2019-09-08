@@ -27,37 +27,32 @@ class Repetition extends Production
     private $lte;
 
     /**
-     * @var int
+     * @var int|string
      */
     private $rule;
 
     /**
      * Repetition constructor.
      *
-     * @param int $rule
+     * @param int|string $rule
      * @param int|float $gte
      * @param int|float $lte
-     * @param \Closure|null $reducer
      */
-    public function __construct(int $rule, float $gte = 0, float $lte = \INF, \Closure $reducer = null)
+    public function __construct($rule, float $gte = 0, float $lte = \INF)
     {
         \assert($lte >= $gte, 'Min repetitions count must be greater or equal than max repetitions');
 
-        parent::__construct($reducer);
-
         $this->rule = $rule;
-        $this->gte = $gte;
-        $this->lte = $lte;
+        $this->gte  = $gte;
+        $this->lte  = $lte;
     }
 
     /**
      * @param BufferInterface $buffer
-     * @param int $type
-     * @param int $offset
      * @param \Closure $reduce
      * @return iterable|null
      */
-    public function reduce(BufferInterface $buffer, int $type, int $offset, \Closure $reduce): ?iterable
+    public function reduce(BufferInterface $buffer, \Closure $reduce): ?iterable
     {
         [$children, $iterations] = [[], 0];
 
@@ -78,14 +73,6 @@ class Repetition extends Production
             $children = $this->merge($children, $result);
         } while ($result !== null && ++$iterations);
 
-        return $this->toAst($this->merge([], $children), $type, $offset);
-    }
-
-    /**
-     * @return string
-     */
-    public function __toString(): string
-    {
-        return $this->rule . ' { ' . $this->gte . ' ... ' . $this->lte . ' }';
+        return $children;
     }
 }
