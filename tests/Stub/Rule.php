@@ -9,13 +9,14 @@
 
 declare(strict_types=1);
 
-namespace Phplrt\Parser\Exception;
+namespace Phplrt\Parser\Tests\Stub;
 
-use Phplrt\Contracts\Parser\Exception\ParserExceptionInterface;
+use Phplrt\Contracts\Grammar\RuleInterface;
 
-/**
- * Class ParserException
- */
-class ParserException extends \Exception implements ParserExceptionInterface
+class Rule implements RuleInterface
 {
+    public static function new(): self
+    {
+        return new self();
+    }
 }
