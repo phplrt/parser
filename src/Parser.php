@@ -14,15 +14,17 @@ namespace Phplrt\Parser;
 use Phplrt\Contracts\Ast\NodeInterface;
 use Phplrt\Contracts\Buffer\BufferInterface;
 use Phplrt\Contracts\Exception\RuntimeExceptionInterface;
+use Phplrt\Contracts\Grammar\ProductionInterface;
+use Phplrt\Contracts\Grammar\RuleInterface;
+use Phplrt\Contracts\Grammar\TerminalInterface;
 use Phplrt\Contracts\Lexer\LexerInterface;
 use Phplrt\Contracts\Parser\ParserInterface;
 use Phplrt\Contracts\Source\ReadableInterface;
+use Phplrt\Parser\Config\Config;
+use Phplrt\Parser\Config\ConfigInterface;
+use Phplrt\Parser\Config\Options;
 use Phplrt\Parser\Exception\ParserRuntimeException;
 use Phplrt\Parser\Exception\UnexpectedTokenException;
-use Phplrt\Parser\Exception\UnrecognizedTokenException;
-use Phplrt\Parser\Grammar\ProductionInterface;
-use Phplrt\Parser\Grammar\RuleInterface;
-use Phplrt\Parser\Grammar\TerminalInterface;
 use Phplrt\Source\File;
 
 /**
@@ -57,15 +59,12 @@ use Phplrt\Source\File;
  *          Expression = Number { Operator } ;
  *      *)
  * </code>
+ *
+ * @psalm-import-type ConfigArray from Config
+ * @psalm-import-type StepReducer from ConfigInterface
  */
-final class Parser implements
-    ParserInterface,
-    ParserConfigsInterface,
-    BuilderInterface,
-    LexerInterface
+final class Parser implements ParserInterface, Options
 {
-    use ParserConfigsTrait;
-
     /**
      * @var string
      */
@@ -73,11 +72,6 @@ final class Parser implements
         'Please note that if Xdebug is enabled, a "Fatal error: Maximum function nesting level of "%d" ' .
         'reached, aborting!" errors may occur. In the second case, it is worth increasing the ini value ' .
         'or disabling the extension.';
-
-    /**
-     * @var string
-     */
-    private const ERROR_BUFFER_TYPE = 'Buffer class should implement %s interface';
 
     /**
      * The lexer instance.
@@ -89,37 +83,89 @@ final class Parser implements
     /**
      * Array of transition rules for the parser.
      *
-     * @var array|RuleInterface[]
+     * @var array<string|int, RuleInterface>
      */
     private array $rules;
 
     /**
-     * @param LexerInterface $lexer
-     * @param iterable|RuleInterface[] $grammar
-     * @param array $options
+     * @var ConfigInterface
      */
-    public function __construct(LexerInterface $lexer, iterable $grammar = [], array $options = [])
+    private ConfigInterface $config;
+
+    /**
+     * @var string
+     */
+    private string $eoi;
+
+    /**
+     * @var StepReducer|null
+     */
+    private $step;
+
+    /**
+     * @var BuilderInterface|null
+     */
+    private ?BuilderInterface $builder;
+
+    /**
+     * @param LexerInterface $lexer
+     * @param iterable<string|int, RuleInterface> $grammar
+     * @param ConfigArray|ConfigInterface $options
+     */
+    public function __construct(LexerInterface $lexer, iterable $grammar = [], $options = [])
     {
         $this->lexer = $lexer;
-        $this->rules = $grammar instanceof \Traversable ? \iterator_to_array($grammar) : $grammar;
+        $this->rules = $this->bootGrammar($grammar);
+        $this->config = $this->bootConfig($options);
 
-        $this->initializeOptions($options);
+        $this->bootEnvironment();
+        $this->bootConfigDefaults();
     }
 
     /**
-     * @param array $options
      * @return void
      */
-    private function initializeOptions(array $options): void
+    private function bootConfigDefaults(): void
     {
-        $this->bootParserConfigsTrait($options);
+        $this->eoi = $this->config->getEoiTokenName();
+        $this->step = $this->config->getStepReducer();
+        $this->builder = $this->config->getBuilder();
+    }
 
-        //
-        // In the case that the xdebug is enabled, then the parser may return
-        // an error due to the features of the recursive algorithm.
-        //
-        // Parser should notify about it.
-        //
+    /**
+     * @param iterable<string|int, RuleInterface> $grammar
+     * @return array<string|int, RuleInterface>
+     */
+    private function bootGrammar(iterable $grammar): array
+    {
+        if ($grammar instanceof \Traversable) {
+            return \iterator_to_array($grammar);
+        }
+
+        return $grammar;
+    }
+
+    /**
+     * @param ConfigArray|ConfigInterface $options
+     * @return ConfigInterface
+     */
+    private function bootConfig($options): ConfigInterface
+    {
+        if ($options instanceof ConfigInterface) {
+            return $options;
+        }
+
+        return new Config($options);
+    }
+
+    /**
+     * In the case that the xdebug is enabled, then the parser may return
+     * an error due to the features of the recursive algorithm.
+     *
+     * Parser should notify about it.
+     */
+    private function bootEnvironment(): void
+    {
         if (\function_exists('\\xdebug_is_enabled')) {
             @\trigger_error(\vsprintf(self::ERROR_XDEBUG_NOTICE_MESSAGE, [
                 \ini_get('xdebug.max_nesting_level'),
@@ -139,50 +185,9 @@ final class Parser implements
             return [];
         }
 
-        return $this->run(File::new($source), $options);
-    }
-
-    /**
-     * @param ReadableInterface $source
-     * @param array $options
-     * @return iterable
-     * @throws \Throwable
-     */
-    private function run(ReadableInterface $source, array $options): iterable
-    {
-        $buffer = $this->buffer->create($this->lex($source), $this->bufferSize);
-
-        $context = $this->createExecutionContext($buffer, $source, $options);
-
-        return $this->parseOrFail($context);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function lex($source): iterable
-    {
-        try {
-            foreach ($this->lexer->lex($source) as $token) {
-                yield $token;
-            }
-        } catch (RuntimeExceptionInterface $e) {
-            throw UnrecognizedTokenException::fromLexerException($e);
-        }
-    }
-
-    /**
-     * @param BufferInterface $buffer
-     * @param ReadableInterface $source
-     * @param array $options
-     * @return Context
-     */
-    protected function createExecutionContext(
-        BufferInterface $buffer,
-        ReadableInterface $source,
-        array $options
-    ): Context {
-        return new Context($buffer, $source, $this->initial, $options);
+        return $this->parseOrFail(
+            $this->createContext(File::new($source), $options)
+        );
     }
 
     /**
@@ -193,12 +198,13 @@ final class Parser implements
     private function parseOrFail(Context $context): iterable
     {
         $result = $this->next($context);
+        $current = $context->buffer->current();
 
-        if (\is_iterable($result) && $this->isEoi($context->buffer)) {
+        if (\is_iterable($result) && $current->getName() === $this->eoi) {
             return $result;
         }
 
-        $token = $context->lastOrdinalToken ?? $context->buffer->current();
+        $token = $context->lastOrdinalToken ?? $current;
 
         throw UnexpectedTokenException::fromToken($context->getSource(), $token);
     }
@@ -266,7 +272,9 @@ final class Parser implements
             return null;
         }
 
-        $result = $this->builder->build($context, $result) ?? $result;
+        if ($this->builder !== null) {
+            $result = $this->builder->build($context, $result) ?? $result;
+        }
 
         if ($result instanceof NodeInterface) {
             $context->node = $result;
@@ -276,23 +284,16 @@ final class Parser implements
     }
 
     /**
-     * Matches a token identifier that marks the end of the source.
-     *
-     * @param BufferInterface $buffer
-     * @return bool
+     * @param ReadableInterface $source
+     * @param array $options
+     * @return Context
+     * @throws RuntimeExceptionInterface
      */
-    private function isEoi(BufferInterface $buffer): bool
+    private function createContext(ReadableInterface $source, array $options): Context
     {
-        $current = $buffer->current();
+        $buffer = $this->config->getBuffer($this->lexer->lex($source));
+        $initial = $this->config->getInitialRule($this->rules);
 
-        return $current->getName() === $this->eoi;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function build(ContextInterface $context, $result)
-    {
-        return $result;
+        return new Context($buffer, $source, $initial, $options);
     }
 }

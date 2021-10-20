@@ -18,9 +18,9 @@ use Phplrt\Lexer\Lexer;
 use Phplrt\Lexer\Token\Token;
 use Phplrt\Parser\BuilderInterface;
 use Phplrt\Parser\ContextInterface;
-use Phplrt\Parser\Grammar\Concatenation;
-use Phplrt\Parser\Grammar\Lexeme;
-use Phplrt\Parser\Grammar\Repetition;
+use Phplrt\Grammar\Concatenation;
+use Phplrt\Grammar\Lexeme;
+use Phplrt\Grammar\Repetition;
 use Phplrt\Parser\Parser;
 use Phplrt\Parser\Tests\Stub\AstNode;
 use PHPUnit\Framework\ExpectationFailedException;
@@ -115,11 +115,9 @@ class SimpleSumParserTestCase extends TestCase implements BuilderInterface
             ]),
             new AstNode('suffix', [
                 new Token('T_PLUS', '+', 6),
-                $last = new Token('T_DIGIT', '4', 8),
+                new Token('T_DIGIT', '4', 8),
             ]),
         ]);
-
-        $last->getBytes();
 
         $actual = $this->parseSum('2 + 2 + 4');
 
