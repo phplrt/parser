@@ -32,8 +32,8 @@ use Phplrt\Source\File;
  *
  * Is a kind of top-down parser built from a set of mutually recursive methods
  * defined in:
- *  - Phplrt\Parser\Rule\ProductionInterface::reduce()
- *  - Phplrt\Parser\Rule\TerminalInterface::reduce()
+ *  - Phplrt\parser\Rule\ProductionInterface::reduce()
+ *  - Phplrt\parser\Rule\TerminalInterface::reduce()
  *
  * Where each such class implements one of the terminals or productions of the
  * grammar. Thus the structure of the resulting program closely mirrors that
@@ -162,7 +162,7 @@ final class Parser implements ParserInterface, Options
      * In the case that the xdebug is enabled, then the parser may return
      * an error due to the features of the recursive algorithm.
      *
-     * Parser should notify about it.
+     * parser should notify about it.
      */
     private function bootEnvironment(): void
     {

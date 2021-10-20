@@ -48,7 +48,7 @@ final class Config implements ConfigInterface
     private FactoryInterface $buffer;
 
     /**
-     * Buffer size.
+     * buffer size.
      *
      * @var int|null
      */

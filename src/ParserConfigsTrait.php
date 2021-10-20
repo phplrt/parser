@@ -38,7 +38,7 @@ trait ParserConfigsTrait
     private FactoryInterface $buffer;
 
     /**
-     * Buffer size.
+     * buffer size.
      *
      * @var positive-int|null
      */
