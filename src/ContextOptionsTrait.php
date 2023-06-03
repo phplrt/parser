@@ -1,12 +1,5 @@
 <?php
 
-/**
- * This file is part of phplrt package.
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
-
 declare(strict_types=1);
 
 namespace Phplrt\Parser;
@@ -23,25 +16,16 @@ trait ContextOptionsTrait
      */
     protected array $options = [];
 
-    /**
-     * {@inheritDoc}
-     */
     public function getOptions(): array
     {
         return $this->options;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function getOption(string $name, $default = null)
     {
         return $this->options[$name] ?? $default;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function hasOption(string $name): bool
     {
         //

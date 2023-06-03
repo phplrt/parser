@@ -1,12 +1,5 @@
 <?php
 
-/**
- * This file is part of phplrt package.
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
-
 declare(strict_types=1);
 
 namespace Phplrt\Parser;
@@ -96,7 +89,7 @@ final class Parser implements
      *
      * @var array<RuleInterface>
      */
-    private array $rules;
+    private array $rules = [];
 
     /**
      * Array of possible tokens for error or missing token.
@@ -158,12 +151,9 @@ final class Parser implements
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function parse($source, array $options = []): iterable
     {
-        if (\count($this->rules) === 0) {
+        if ($this->rules === []) {
             return [];
         }
 
@@ -268,7 +258,7 @@ final class Parser implements
         $problemTokenOffset = $context->lastOrdinalToken->getOffset();
         $problemTokenKey = 0;
         while ($context->buffer->get($problemTokenKey)->getOffset() !== $problemTokenOffset) {
-            $problemTokenKey++;
+            ++$problemTokenKey;
         }
 
         $context->buffer->set($problemTokenKey, new Token(
@@ -289,7 +279,7 @@ final class Parser implements
      */
     private function next(Context $context)
     {
-        if ($this->step) {
+        if ($this->step !== null) {
             return ($this->step)($context, function () use ($context) {
                 return $this->runNextStep($context);
             });
@@ -319,10 +309,11 @@ final class Parser implements
                     // Rollback previous state
                     [$context->state, $context->lastProcessedToken] = $before;
 
-                    if (DriverInterface::UNKNOWN_TOKEN_NAME === $context->lastProcessedToken->getName()) {
-                        if (!in_array($context->rule->token, $this->possibleTokens)) {
-                            $this->possibleTokens[] = $context->rule->token;
-                        }
+                    if (
+                        DriverInterface::UNKNOWN_TOKEN_NAME === $context->lastProcessedToken->getName()
+                        && !\in_array($context->rule->token, $this->possibleTokens, true)
+                    ) {
+                        $this->possibleTokens[] = $context->rule->token;
                     }
 
                     return $result;
@@ -345,10 +336,8 @@ final class Parser implements
                     }
                 }
 
-                if (DriverInterface::UNKNOWN_TOKEN_NAME === $context->lastProcessedToken->getName()) {
-                    if (!in_array($context->rule->token, $this->possibleTokens)) {
-                        $this->possibleTokens[] = $context->rule->token;
-                    }
+                if (DriverInterface::UNKNOWN_TOKEN_NAME === $context->lastProcessedToken->getName() && !in_array($context->rule->token, $this->possibleTokens, true)) {
+                    $this->possibleTokens[] = $context->rule->token;
                 }
 
                 break;
@@ -380,9 +369,6 @@ final class Parser implements
         return $current->getName() === $this->eoi;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function build(ContextInterface $context, $result)
     {
         return $result;

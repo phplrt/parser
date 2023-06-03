@@ -1,12 +1,5 @@
 <?php
 
-/**
- * This file is part of phplrt package.
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
-
 declare(strict_types=1);
 
 namespace Phplrt\Parser\Grammar;
@@ -31,7 +24,7 @@ class Builder implements \IteratorAggregate
      */
     public function __construct(\Closure $generator = null)
     {
-        if ($generator) {
+        if ($generator !== null) {
             $this->extend($generator);
         }
     }
@@ -144,7 +137,7 @@ class Builder implements \IteratorAggregate
             return $generator;
         }
 
-        throw new \InvalidArgumentException(\sprintf(self::ERROR_INVALID_PAYLOAD));
+        throw new \InvalidArgumentException(self::ERROR_INVALID_PAYLOAD);
     }
 
     /**
@@ -167,9 +160,6 @@ class Builder implements \IteratorAggregate
         return $id;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function getIterator(): \Traversable
     {
         return new \ArrayIterator($this->grammar);

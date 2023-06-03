@@ -1,12 +1,5 @@
 <?php
 
-/**
- * This file is part of phplrt package.
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
-
 declare(strict_types=1);
 
 namespace Phplrt\Parser;
@@ -115,33 +108,21 @@ class Context implements ContextInterface
         $this->lastOrdinalToken = $this->lastProcessedToken = $this->buffer->current();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function getBuffer(): BufferInterface
     {
         return $this->buffer;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function getSource(): ReadableInterface
     {
         return $this->source;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function getNode(): ?NodeInterface
     {
         return $this->node;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function getRule(): RuleInterface
     {
         assert($this->rule !== null, 'Context not initialized');
@@ -149,17 +130,11 @@ class Context implements ContextInterface
         return $this->rule;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function getToken(): TokenInterface
     {
         return $this->lastProcessedToken;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function getState()
     {
         assert($this->state !== null, 'Context not initialized');

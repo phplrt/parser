@@ -24,11 +24,13 @@ class UnexpectedTokenWithHintsException extends UnexpectedTokenException
             ? 'Unexpected end of code'
             : self::ERROR_UNRECOGNIZED_TOKEN;
         $possibleTokensString = '';
-        if (!empty($possibleTokens)) {
-            $possibleTokensString = !empty($possibleTokens)
-                ? 'Expected ' . implode(', ', $possibleTokens) . '. '
-                : '';
+        if ($possibleTokens !== []) {
+            $possibleTokensString = $possibleTokens !== []
+                ? 'Expected ' . \implode(', ', $possibleTokens) . '. '
+                : ''
+            ;
         }
+
         $message = \sprintf(
             $errorMessage . '. '
             . $possibleTokensString,

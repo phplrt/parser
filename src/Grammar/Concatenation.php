@@ -1,12 +1,5 @@
 <?php
 
-/**
- * This file is part of phplrt package.
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
-
 declare(strict_types=1);
 
 namespace Phplrt\Parser\Grammar;
@@ -18,7 +11,7 @@ class Concatenation extends Production
     /**
      * @var array|int[]
      */
-    public array $sequence;
+    public array $sequence = [];
 
     /**
      * @param array $sequence
@@ -28,9 +21,6 @@ class Concatenation extends Production
         $this->sequence = $sequence;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function reduce(BufferInterface $buffer, \Closure $reduce): ?iterable
     {
         [$revert, $children] = [$buffer->key(), []];
