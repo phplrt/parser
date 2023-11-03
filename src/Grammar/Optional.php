@@ -9,12 +9,15 @@ use Phplrt\Buffer\BufferInterface;
 class Optional extends Production
 {
     /**
-     * @var int|string
+     * @var array-key
+     *
+     * @readonly
+     * @psalm-readonly-allow-private-mutation
      */
     public $rule;
 
     /**
-     * @param int|string $rule
+     * @param array-key $rule
      */
     public function __construct($rule)
     {

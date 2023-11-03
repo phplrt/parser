@@ -9,12 +9,15 @@ use Phplrt\Buffer\BufferInterface;
 class Concatenation extends Production
 {
     /**
-     * @var array|int[]
+     * @var list<array-key>
+     *
+     * @readonly
+     * @psalm-readonly-allow-private-mutation
      */
     public array $sequence = [];
 
     /**
-     * @param array $sequence
+     * @param list<array-key> $sequence
      */
     public function __construct(array $sequence)
     {
