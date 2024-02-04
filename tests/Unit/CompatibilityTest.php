@@ -33,6 +33,15 @@ class CompatibilityTest extends TestCase
         };
     }
 
+    public function testBuilderWithMixedCompatibility(): void
+    {
+        self::expectNotToPerformAssertions();
+
+        new class () implements BuilderInterface {
+            public function build(Context $context, mixed $result) {}
+        };
+    }
+
     public function testParserConfigsCompatibility(): void
     {
         self::expectNotToPerformAssertions();
@@ -94,6 +103,17 @@ class CompatibilityTest extends TestCase
         new class () implements ContextOptionsProviderInterface {
             public function getOptions(): array {}
             public function getOption(string $name, $default = null) {}
+            public function hasOption(string $name): bool {}
+        };
+    }
+
+    public function testContextOptionsProviderWithMixedCompatibility(): void
+    {
+        self::expectNotToPerformAssertions();
+
+        new class () implements ContextOptionsProviderInterface {
+            public function getOptions(): array {}
+            public function getOption(string $name, mixed $default = null) {}
             public function hasOption(string $name): bool {}
         };
     }
