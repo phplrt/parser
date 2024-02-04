@@ -123,7 +123,7 @@ final class Parser implements ParserInterface, ParserConfigsInterface
          *
          * @psalm-readonly-allow-private-mutation
          */
-        private LexerInterface $lexer,
+        private readonly LexerInterface $lexer,
         iterable $grammar = [],
         array $options = [],
         ?SourceFactoryInterface $sources = null
@@ -187,7 +187,7 @@ final class Parser implements ParserInterface, ParserConfigsInterface
      *
      * @return array-key
      */
-    private static function bootInitialRule(array $options, array $grammar)
+    private static function bootInitialRule(array $options, array $grammar): int|string
     {
         $initial = $options[self::CONFIG_INITIAL_RULE] ?? null;
 
@@ -299,10 +299,7 @@ final class Parser implements ParserInterface, ParserConfigsInterface
         return \array_values($tokens);
     }
 
-    /**
-     * @return mixed
-     */
-    private function next(Context $context)
+    private function next(Context $context): mixed
     {
         if ($this->step !== null) {
             return ($this->step)($context, function () use ($context) {
@@ -313,7 +310,7 @@ final class Parser implements ParserInterface, ParserConfigsInterface
         return $this->runNextStep($context);
     }
 
-    private function runNextStep(Context $context)
+    private function runNextStep(Context $context): mixed
     {
         $context->rule = $this->rules[$context->state];
         $result = null;
@@ -393,9 +390,11 @@ final class Parser implements ParserInterface, ParserConfigsInterface
      *  $context = $parser->getLastExecutionContext();
      *  var_dump($context->buffer->current()); // Returns the token where the parser stopped
      * ```
+     *
+     * @api
      */
     public function getLastExecutionContext(): ?Context
     {
-        return $this->context;
+        return clone $this->context;
     }
 }
