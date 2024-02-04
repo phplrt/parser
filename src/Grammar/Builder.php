@@ -130,7 +130,7 @@ class Builder implements \IteratorAggregate
      * @param array-key|null $id
      * @return array-key
      */
-    public function add(RuleInterface $rule, $id = null)
+    public function add(RuleInterface $rule, $id = null): int|string|null
     {
         \assert($id === null || \is_int($id) || \is_string($id));
 

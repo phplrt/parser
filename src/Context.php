@@ -61,41 +61,31 @@ class Context implements ContextInterface
     public ?RuleInterface $rule = null;
 
     /**
-     * Contains the identifier of the current state of the parser.
-     *
-     * Note: This is a stateful data and may cause a race condition error. In
-     * the future, it is necessary to delete this data with a replacement for
-     * the stateless structure.
-     *
-     * @var array-key
+     * @param array-key $state
+     * @param array<non-empty-string, mixed> $options
      */
-    public $state;
-
-    /**
-     * Contains information about the processed source.
-     *
-     * @readonly marked as readonly since phplrt 3.4 and will be readonly since 4.0
-     * @psalm-readonly-allow-private-mutation
-     */
-    public ReadableInterface $source;
-
-    /**
+    public function __construct(/**
      * Contains a buffer of tokens that were collected from lexical analysis.
      *
      * @readonly marked as readonly since phplrt 3.4 and will be readonly since 4.0
      * @psalm-readonly-allow-private-mutation
      */
-    public BufferInterface $buffer;
-
-    /**
-     * @param array-key $state
-     * @param array<non-empty-string, mixed> $options
+        public BufferInterface $buffer, /**
+     * Contains information about the processed source.
+     *
+     * @readonly marked as readonly since phplrt 3.4 and will be readonly since 4.0
+     * @psalm-readonly-allow-private-mutation
      */
-    public function __construct(BufferInterface $buffer, ReadableInterface $source, $state, array $options)
-    {
-        $this->state = $state;
-        $this->source = $source;
-        $this->buffer = $buffer;
+        public ReadableInterface $source, /**
+     * Contains the identifier of the current state of the parser.
+     *
+     * Note: This is a stateful data and may cause a race condition error. In
+     * the future, it is necessary to delete this data with a replacement for
+     * the stateless structure.
+     */
+        public $state,
+        array $options
+    ) {
         $this->options = $options;
 
         $this->lastOrdinalToken = $this->lastProcessedToken = $this->buffer->current();

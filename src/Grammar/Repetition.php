@@ -28,23 +28,20 @@ class Repetition extends Production
     public $lte;
 
     /**
-     * @var array-key
-     *
-     * @readonly
-     * @psalm-readonly-allow-private-mutation
-     */
-    public $rule;
-
-    /**
      * @param array-key $rule
      * @param int<0, max> $gte
      * @param int<0, max>|float $lte
      */
-    public function __construct($rule, int $gte = 0, $lte = \INF)
-    {
+    public function __construct(/**
+     *
+     * @readonly
+     * @psalm-readonly-allow-private-mutation
+     */
+        public $rule,
+        int $gte = 0,
+        $lte = \INF
+    ) {
         \assert($lte >= $gte, 'Min repetitions count must be greater or equal than max repetitions');
-
-        $this->rule = $rule;
         $this->gte  = $gte;
         $this->lte  = \is_infinite($lte) ? \INF : (int) $lte;
     }

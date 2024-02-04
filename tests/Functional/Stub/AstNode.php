@@ -12,13 +12,8 @@ use Phplrt\Contracts\Ast\NodeInterface;
  */
 class AstNode implements NodeInterface
 {
-    public string $name;
-    public array $children;
-
-    public function __construct(string $name, array $children = [])
+    public function __construct(public string $name, public array $children = [])
     {
-        $this->name = $name;
-        $this->children = $children;
     }
 
     public function getIterator(): \Traversable
