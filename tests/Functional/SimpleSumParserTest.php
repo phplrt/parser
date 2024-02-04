@@ -2,11 +2,8 @@
 
 declare(strict_types=1);
 
-namespace Phplrt\Parser\Tests;
+namespace Phplrt\Parser\Tests\Functional;
 
-use Phplrt\Contracts\Ast\NodeInterface;
-use Phplrt\Contracts\Exception\RuntimeExceptionInterface;
-use Phplrt\Contracts\Lexer\TokenInterface;
 use Phplrt\Lexer\Lexer;
 use Phplrt\Lexer\Token\Token;
 use Phplrt\Parser\BuilderInterface;
@@ -15,10 +12,11 @@ use Phplrt\Parser\Grammar\Concatenation;
 use Phplrt\Parser\Grammar\Lexeme;
 use Phplrt\Parser\Grammar\Repetition;
 use Phplrt\Parser\Parser;
-use Phplrt\Parser\Tests\Stub\AstNode;
-use PHPUnit\Framework\ExpectationFailedException;
+use Phplrt\Parser\Tests\Functional\Stub\AstNode;
+use PHPUnit\Framework\Attributes\Group;
 
-class SimpleSumParserTestCase extends TestCase implements BuilderInterface
+#[Group('phplrt/parser'), Group('functional')]
+class SimpleSumParserTest extends TestCase implements BuilderInterface
 {
     public function build(Context $context, $result)
     {
@@ -31,11 +29,6 @@ class SimpleSumParserTestCase extends TestCase implements BuilderInterface
         return new AstNode($context->getState(), $result);
     }
 
-    /**
-     * @return void
-     * @throws ExpectationFailedException
-     * @throws \Throwable
-     */
     public function testNodesCount(): void
     {
         $expected = [
@@ -58,12 +51,6 @@ class SimpleSumParserTestCase extends TestCase implements BuilderInterface
         $this->assertSame($expected, $actual);
     }
 
-    /**
-     * @param string $expr
-     * @return iterable
-     * @throws RuntimeExceptionInterface
-     * @throws \Throwable
-     */
     private function parseSum(string $expr): iterable
     {
         $lexer = new Lexer([
@@ -88,11 +75,6 @@ class SimpleSumParserTestCase extends TestCase implements BuilderInterface
         return $parser->parse($expr);
     }
 
-    /**
-     * @return void
-     * @throws RuntimeExceptionInterface
-     * @throws \Throwable
-     */
     public function testAstStructure(): void
     {
         $expected = new AstNode('sum', [

@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace Phplrt\Parser\Tests;
+namespace Phplrt\Parser\Tests\Functional;
 
-use Phplrt\Parser\Tests\Stub\Rule;
 use Phplrt\Parser\Grammar\Builder;
 use Phplrt\Parser\Grammar\Concatenation;
 use Phplrt\Parser\Grammar\Lexeme;
 use Phplrt\Parser\Grammar\Repetition;
+use Phplrt\Parser\Tests\TestCase;
+use Phplrt\Parser\Tests\Functional\Stub\Rule;
+use PHPUnit\Framework\Attributes\Group;
 
-class GrammarGeneratorTestCase extends TestCase
+#[Group('phplrt/parser'), Group('functional')]
+class GrammarGeneratorTest extends TestCase
 {
-    /**
-     * @return void
-     */
     public function testNamedRuleReturnsName(): void
     {
         new Builder(function () {
@@ -22,9 +22,6 @@ class GrammarGeneratorTestCase extends TestCase
         });
     }
 
-    /**
-     * @return void
-     */
     public function testAnonymousRuleReturnsIndex(): void
     {
         new Builder(function () {
@@ -33,9 +30,6 @@ class GrammarGeneratorTestCase extends TestCase
         });
     }
 
-    /**
-     * @return void
-     */
     public function testRuleUsage(): void
     {
         new Builder(function () {
@@ -44,9 +38,6 @@ class GrammarGeneratorTestCase extends TestCase
         });
     }
 
-    /**
-     * @return void
-     */
     public function testHelpers(): void
     {
         $generator = new Builder(static function (Builder $c) {
@@ -60,10 +51,10 @@ class GrammarGeneratorTestCase extends TestCase
         });
 
         $expected = [
-            0     => new Lexeme('digit'),
-            1     => new Lexeme('plus'),
-            2     => new Concatenation([1, 0]),
-            3     => new Repetition(2),
+            0 => new Lexeme('digit'),
+            1 => new Lexeme('plus'),
+            2 => new Concatenation([1, 0]),
+            3 => new Repetition(2),
             'sum' => new Concatenation([0, 3]),
         ];
 

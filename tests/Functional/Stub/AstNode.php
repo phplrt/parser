@@ -2,10 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Phplrt\Parser\Tests\Stub;
+namespace Phplrt\Parser\Tests\Functional\Stub;
 
 use Phplrt\Contracts\Ast\NodeInterface;
 
+/**
+ * @internal This is an internal library class, please do not use it in your code.
+ * @psalm-internal Phplrt\Parser\Tests\Unit
+ */
 class AstNode implements NodeInterface
 {
     public string $name;
