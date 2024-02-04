@@ -205,32 +205,6 @@ final class Parser implements ParserInterface, ParserConfigsInterface
     }
 
     /**
-     * Sets an initial state (initial rule identifier) of the parser.
-     *
-     * @param array-key $initial
-     *
-     * @deprecated since phplrt 3.4 and will be removed in 4.0
-     */
-    public function startsAt($initial): self
-    {
-        $this->initial = $initial;
-
-        return $this;
-    }
-
-    /**
-     * Sets an abstract syntax tree builder.
-     *
-     * @deprecated since phplrt 3.4 and will be removed in 4.0
-     */
-    public function buildUsing(BuilderInterface $builder): self
-    {
-        $this->builder = $builder;
-
-        return $this;
-    }
-
-    /**
      * @param array<non-empty-string, mixed> $options
      * @return iterable<array-key, object>
      *

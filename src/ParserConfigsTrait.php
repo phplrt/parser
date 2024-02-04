@@ -32,20 +32,6 @@ trait ParserConfigsTrait
     private string $eoi = TokenInterface::END_OF_INPUT;
 
     /**
-     * Possible tokens searching (enable if it is {@see true}).
-     *
-     * @deprecated since phplrt 3.4 and will be removed in 4.0. Now this option
-     *             has no effect.
-     */
-    private bool $possibleTokensSearching = false;
-
-    /**
-     * @deprecated since phplrt 3.4 and will be removed in 4.0. Now this option
-     *             has no effect.
-     */
-    private bool $useMutableBuffer = false;
-
-    /**
      * Enables support for trailing tokens after a completed grammar.
      */
     private bool $allowTrailingTokens = false;
@@ -66,7 +52,6 @@ trait ParserConfigsTrait
             ->completeAt($options[Config::CONFIG_EOI] ?? $this->eoi)
             ->withBuffer($options[Config::CONFIG_BUFFER] ?? $this->buffer)
             ->eachStepThrough($options[Config::CONFIG_STEP_REDUCER] ?? null)
-            ->possibleTokensSearching($options[Config::CONFIG_POSSIBLE_TOKENS_SEARCHING] ?? false)
             ->allowTrailingTokens($options[Config::CONFIG_ALLOW_TRAILING_TOKENS] ?? false)
         ;
     }
@@ -96,6 +81,8 @@ trait ParserConfigsTrait
      * </code>
      *
      * @param (callable(Context, (\Closure(): mixed)): mixed)|null $step
+     *
+     * @return self
      */
     public function eachStepThrough(?callable $step): self
     {
@@ -114,20 +101,6 @@ trait ParserConfigsTrait
         \assert(\is_subclass_of($class, BufferInterface::class));
 
         $this->buffer = $class;
-
-        return $this;
-    }
-
-    /**
-     * Turn on/off for possible tokens searching.
-     *
-     * @deprecated since phplrt 3.4 and will be removed in 4.0. Now this option
-     *             has no effect.
-     */
-    public function possibleTokensSearching(bool $possibleTokensSearching): self
-    {
-        $this->possibleTokensSearching = $possibleTokensSearching;
-        $this->useMutableBuffer = $this->possibleTokensSearching;
 
         return $this;
     }

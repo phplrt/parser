@@ -31,10 +31,7 @@
     "autoload": {
         "psr-4": {
             "Phplrt\\Parser\\": "src"
-        },
-        "files": [
-            "src/polyfill.php"
-        ]
+        }
     },
     "require-dev": {
         "phplrt/visitor": "^4.0",

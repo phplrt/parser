@@ -24,7 +24,7 @@ use Phplrt\Parser\Grammar\RuleInterface;
  *
  * @final marked as final since phplrt 3.4 and will be final since 4.0
  */
-class Context implements ContextInterface
+class Context
 {
     use ContextOptionsTrait;
 
