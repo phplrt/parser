@@ -81,8 +81,6 @@ trait ParserConfigsTrait
      * </code>
      *
      * @param (callable(Context, (\Closure(): mixed)): mixed)|null $step
-     *
-     * @return self
      */
     public function eachStepThrough(?callable $step): self
     {

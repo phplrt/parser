@@ -28,7 +28,7 @@ class CompatibilityTest extends TestCase
     {
         self::expectNotToPerformAssertions();
 
-        new class implements BuilderInterface {
+        new class () implements BuilderInterface {
             public function build(Context $context, $result) {}
         };
     }
@@ -37,14 +37,14 @@ class CompatibilityTest extends TestCase
     {
         self::expectNotToPerformAssertions();
 
-        new class implements ParserConfigsInterface {};
+        new class () implements ParserConfigsInterface {};
     }
 
     public function testProductionCompatibility(): void
     {
         self::expectNotToPerformAssertions();
 
-        new class implements ProductionInterface {
+        new class () implements ProductionInterface {
             public function reduce(BufferInterface $buffer, \Closure $reduce) {}
             public function getTerminals(array $rules): iterable {}
         };
@@ -54,7 +54,7 @@ class CompatibilityTest extends TestCase
     {
         self::expectNotToPerformAssertions();
 
-        new class implements RuleInterface {
+        new class () implements RuleInterface {
             public function getTerminals(array $rules): iterable {}
         };
     }
@@ -63,7 +63,7 @@ class CompatibilityTest extends TestCase
     {
         self::expectNotToPerformAssertions();
 
-        new class implements TerminalInterface {
+        new class () implements TerminalInterface {
             public function getTerminals(array $rules): iterable {}
             public function reduce(BufferInterface $buffer): ?TokenInterface {}
             public function isKeep(): bool {}
@@ -74,14 +74,14 @@ class CompatibilityTest extends TestCase
     {
         self::expectNotToPerformAssertions();
 
-        new class extends \Exception implements ParserExceptionInterface {};
+        new class () extends \Exception implements ParserExceptionInterface {};
     }
 
     public function testSelectorCompatibility(): void
     {
         self::expectNotToPerformAssertions();
 
-        new class implements SelectorInterface {
+        new class () implements SelectorInterface {
             public function prepare(): void {}
             public function rollback(): void {}
         };
@@ -91,7 +91,7 @@ class CompatibilityTest extends TestCase
     {
         self::expectNotToPerformAssertions();
 
-        new class implements ContextOptionsProviderInterface {
+        new class () implements ContextOptionsProviderInterface {
             public function getOptions(): array {}
             public function getOption(string $name, $default = null) {}
             public function hasOption(string $name): bool {}

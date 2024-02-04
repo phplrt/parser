@@ -12,9 +12,7 @@ use Phplrt\Contracts\Ast\NodeInterface;
  */
 class AstNode implements NodeInterface
 {
-    public function __construct(public string $name, public array $children = [])
-    {
-    }
+    public function __construct(public string $name, public array $children = []) {}
 
     public function getIterator(): \Traversable
     {
