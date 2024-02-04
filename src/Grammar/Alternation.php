@@ -6,21 +6,13 @@ namespace Phplrt\Parser\Grammar;
 
 use Phplrt\Buffer\BufferInterface;
 
-/**
- * @final marked as final since phplrt 3.4 and will be final since 4.0
- */
-class Alternation extends Production
+final class Alternation extends Production
 {
     /**
-     * @param list<array-key> $sequence
+     * @param non-empty-list<array-key> $sequence
      */
     public function __construct(
-        /**
-         *
-         * @readonly
-         * @psalm-readonly-allow-private-mutation
-         */
-        public array $sequence
+        public readonly array $sequence,
     ) {}
 
     public function getTerminals(array $rules): iterable

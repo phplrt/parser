@@ -118,11 +118,6 @@ final class Parser implements ParserInterface, ParserConfigsInterface
      * @param array<ParserConfigsInterface::CONFIG_*, mixed> $options
      */
     public function __construct(
-        /**
-         * The lexer instance.
-         *
-         * @psalm-readonly-allow-private-mutation
-         */
         private readonly LexerInterface $lexer,
         iterable $grammar = [],
         array $options = [],

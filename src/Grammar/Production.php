@@ -14,7 +14,7 @@ abstract class Production extends Rule implements ProductionInterface
      * @param NodeInterface|TokenInterface|array $result
      * @return list<NodeInterface|TokenInterface>
      */
-    protected function mergeWith(array $children, $result): array
+    protected function mergeWith(array $children, mixed $result): array
     {
         if (\is_array($result)) {
             return \array_merge($children, $result);

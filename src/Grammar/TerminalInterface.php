@@ -15,7 +15,7 @@ interface TerminalInterface extends RuleInterface
     /**
      * Returns a matched token if the current buffer state is correctly
      * processed. Otherwise, if the rule does not match the required one,
-     * it returns null.
+     * it returns {@see null}.
      */
     public function reduce(BufferInterface $buffer): ?TokenInterface;
 
