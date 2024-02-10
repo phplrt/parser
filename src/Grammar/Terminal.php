@@ -11,8 +11,7 @@ abstract class Terminal extends Rule implements TerminalInterface
      */
     public function __construct(
         public readonly bool $keep,
-    ) {
-    }
+    ) {}
 
     /**
      * @return bool

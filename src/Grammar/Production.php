@@ -4,6 +4,4 @@ declare(strict_types=1);
 
 namespace Phplrt\Parser\Grammar;
 
-abstract class Production extends Rule implements ProductionInterface
-{
-}
+abstract class Production extends Rule implements ProductionInterface {}

@@ -13,8 +13,7 @@ class Alternation extends Production
      */
     public function __construct(
         public readonly array $sequence,
-    ) {
-    }
+    ) {}
 
     public function reduce(BufferInterface $buffer, \Closure $reduce): mixed
     {

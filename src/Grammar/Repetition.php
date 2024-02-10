@@ -25,7 +25,7 @@ class Repetition extends Production
     ) {
         \assert($to >= $from, 'Min repetitions count must be greater or equal than max repetitions');
 
-        $this->to = \is_infinite($to) ? \INF : (int)$to;
+        $this->to = \is_infinite($to) ? \INF : (int) $to;
     }
 
     public function reduce(BufferInterface $buffer, \Closure $reduce): ?iterable

@@ -18,8 +18,7 @@ final class TreeBuilder implements BuilderInterface
      */
     public function __construct(
         private readonly array $reducers,
-    ) {
-    }
+    ) {}
 
     public function build(Context $context, mixed $result): mixed
     {

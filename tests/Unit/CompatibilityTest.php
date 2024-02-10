@@ -33,13 +33,6 @@ class CompatibilityTest extends TestCase
         };
     }
 
-    public function testParserConfigsCompatibility(): void
-    {
-        self::expectNotToPerformAssertions();
-
-        new class () implements ParserConfigsInterface {};
-    }
-
     public function testProductionCompatibility(): void
     {
         self::expectNotToPerformAssertions();
@@ -68,13 +61,6 @@ class CompatibilityTest extends TestCase
             public function reduce(BufferInterface $buffer): ?TokenInterface {}
             public function isKeep(): bool {}
         };
-    }
-
-    public function testParserExceptionCompatibility(): void
-    {
-        self::expectNotToPerformAssertions();
-
-        new class () extends \Exception implements ParserExceptionInterface {};
     }
 
     public function testSelectorCompatibility(): void

@@ -13,8 +13,7 @@ class Optional extends Production
      */
     public function __construct(
         public readonly int|string $rule,
-    ) {
-    }
+    ) {}
 
     public function reduce(BufferInterface $buffer, \Closure $reduce): mixed
     {

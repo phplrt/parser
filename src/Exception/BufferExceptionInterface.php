@@ -6,6 +6,4 @@ namespace Phplrt\Parser\Exception;
 
 use Phplrt\Contracts\Parser\ParserExceptionInterface;
 
-interface BufferExceptionInterface extends ParserExceptionInterface
-{
-}
+interface BufferExceptionInterface extends ParserExceptionInterface {}

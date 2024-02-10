@@ -37,7 +37,7 @@ final class XdebugSelector implements SelectorInterface
         private readonly int $expectedRecursionDepth = self::DEFAULT_EXPECTED_RECURSION_DEPTH,
     ) {
         $this->enabled = \extension_loaded('xdebug');
-        $this->actualRecursionDepth = (int)\ini_get('xdebug.max_nesting_level');
+        $this->actualRecursionDepth = (int) \ini_get('xdebug.max_nesting_level');
     }
 
     /**

@@ -17,8 +17,7 @@ final class ClosureHandler implements HandlerInterface
      */
     public function __construct(
         private readonly \Closure $handler,
-    ) {
-    }
+    ) {}
 
     /**
      * @return TReturn

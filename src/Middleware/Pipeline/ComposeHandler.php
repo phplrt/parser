@@ -13,8 +13,7 @@ final class ComposeHandler implements HandlerInterface
     public function __construct(
         private readonly MiddlewareInterface $middleware,
         private readonly HandlerInterface $handler,
-    ) {
-    }
+    ) {}
 
     public function handle(Context $context): mixed
     {

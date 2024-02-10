@@ -13,8 +13,7 @@ final class Factory implements SelectorInterface
         private readonly array $selectors = [
             new XdebugSelector(),
         ],
-    ) {
-    }
+    ) {}
 
     public function prepare(): void
     {
