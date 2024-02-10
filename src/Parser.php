@@ -87,6 +87,11 @@ final class Parser implements ParserInterface
     private readonly HandlerInterface $handler;
 
     /**
+     * Contains last execution context.
+     */
+    private ?Context $context = null;
+
+    /**
      * @param LexerInterface $lexer A Lexer implementation instance.
      * @param array<int|non-empty-string, RuleInterface> $grammar Array of
      *        transition rules for the parser.
@@ -159,18 +164,18 @@ final class Parser implements ParserInterface
         $this->env->prepare();
 
         try {
-            $context = $this->createExecutionContext($source, $options);
-            $context->rule = $this->grammar[$context->state];
+            $this->context = $this->createExecutionContext($source, $options);
+            $this->context->rule = $this->grammar[$this->context->state];
 
-            $result = $this->pipeline->process($context, $this->handler);
+            $result = $this->pipeline->process($this->context, $this->handler);
 
-            if (\is_iterable($result) && $this->isEoi($context->buffer)) {
+            if (\is_iterable($result) && $this->isEoi($this->context->buffer)) {
                 return $result;
             }
 
             throw UnexpectedTokenException::fromUnexpectedToken(
-                $context->getSource(),
-                $context->lastProcessedToken ?? $context->buffer->current(),
+                $this->context->getSource(),
+                $this->context->lastProcessedToken ?? $this->context->buffer->current(),
             );
         } finally {
             $this->env->rollback();
@@ -274,5 +279,25 @@ final class Parser implements ParserInterface
         $current = $buffer->current();
 
         return $current->getChannel() === Channel::EOI;
+    }
+
+    /**
+     * Returns last execution context.
+     *
+     * Typically used in conjunction with the "tolerant" mode of the parser.
+     *
+     * ```php
+     *  $parser = new Parser(..., [Parser::CONFIG_ALLOW_TRAILING_TOKENS => true]);
+     *  $parser->parse('...');
+     *
+     *  $context = $parser->getLastExecutionContext();
+     *  var_dump($context->buffer->current()); // Returns the token where the parser stopped
+     * ```
+     *
+     * @api
+     */
+    public function getLastExecutionContext(): ?Context
+    {
+        return $this->context;
     }
 }
