@@ -4,22 +4,23 @@ declare(strict_types=1);
 
 namespace Phplrt\Parser\Grammar;
 
-use Phplrt\Buffer\BufferInterface;
-use Phplrt\Contracts\Lexer\TokenInterface;
+use Phplrt\Contracts\Lexer;
+use Phplrt\Parser\Buffer\BufferInterface;
 
-final class Lexeme extends Terminal
+class Lexeme extends Terminal
 {
     /**
-     * @param non-empty-string|int $token
+     * @param int<0, max>|non-empty-string $token
+     * @param bool $keep
      */
     public function __construct(
-        public readonly string|int $token,
-        bool $keep = true
+        public readonly int|string $token,
+        bool $keep = true,
     ) {
         parent::__construct($keep);
     }
 
-    public function reduce(BufferInterface $buffer): ?TokenInterface
+    public function reduce(BufferInterface $buffer): ?Lexer\TokenInterface
     {
         $haystack = $buffer->current();
 

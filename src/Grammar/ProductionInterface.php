@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Phplrt\Parser\Grammar;
 
-use Phplrt\Buffer\BufferInterface;
+use Phplrt\Parser\Buffer\BufferInterface;
 
 /**
  * Interface denoting a production (that is a non-terminal) rule.
@@ -22,7 +22,7 @@ interface ProductionInterface extends RuleInterface
      * An example of "Optional" (like ebnf "Some?") rule implementation, where
      * ebnf "Some" defined as state 42
      *
-     * ```php
+     * <code>
      *  public function reduce(BufferInterface $buffer, \Closure $reduce)
      *  {
      *      // When result of state 42 return non-null result then we
@@ -35,9 +35,11 @@ interface ProductionInterface extends RuleInterface
      *      // An "Optional" rule always returns a non-null result.
      *      return [];
      *  }
-     * ```
+     * </code>
      *
+     * @param BufferInterface $buffer
+     * @param \Closure $reduce
      * @return mixed|iterable|null
      */
-    public function reduce(BufferInterface $buffer, \Closure $reduce);
+    public function reduce(BufferInterface $buffer, \Closure $reduce): mixed;
 }

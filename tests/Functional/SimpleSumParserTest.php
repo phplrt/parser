@@ -18,7 +18,7 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('phplrt/parser'), Group('functional')]
 class SimpleSumParserTest extends TestCase implements BuilderInterface
 {
-    public function build(Context $context, $result)
+    public function build(Context $context, mixed $result): mixed
     {
         if (\is_int($context->getState())) {
             return $result;
@@ -67,10 +67,12 @@ class SimpleSumParserTest extends TestCase implements BuilderInterface
             'suffix' => new Concatenation([1, 0]),
         ];
 
-        $parser = new Parser($lexer, $grammar, [
-            Parser::CONFIG_INITIAL_RULE => 'sum',
-            Parser::CONFIG_AST_BUILDER  => $this,
-        ]);
+        $parser = new Parser(
+            lexer: $lexer,
+            grammar: $grammar,
+            initial: 'sum',
+            builder: $this,
+        );
 
         return $parser->parse($expr);
     }

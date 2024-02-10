@@ -9,10 +9,4 @@ namespace Phplrt\Parser\Grammar;
  */
 interface RuleInterface
 {
-    /**
-     * @param array<array-key, RuleInterface> $rules
-     *
-     * @return iterable<TerminalInterface>
-     */
-    public function getTerminals(array $rules): iterable;
 }

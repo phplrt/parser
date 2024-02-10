@@ -4,56 +4,38 @@ declare(strict_types=1);
 
 namespace Phplrt\Parser\Grammar;
 
-use Phplrt\Buffer\BufferInterface;
+use Phplrt\Parser\Buffer\BufferInterface;
 
-final class Repetition extends Production
+class Repetition extends Production
 {
     /**
-     * @var int<0, max>
-     */
-    public readonly int $from;
-
-    /**
-     * @var int<0, max>|float
+     * @var int<0, max>|\INF
      */
     public readonly int|float $to;
 
     /**
-     * @param array-key $rule
-     * @param int<0, max> $gte
-     * @param int<0, max>|float $lte
+     * @param int|string $rule
+     * @param int $from
+     * @param int|float $to
      */
     public function __construct(
-        public readonly string|int $rule,
-        int $gte = 0,
-        int|float $lte = \INF,
+        public readonly int|string $rule,
+        public readonly int $from = 0,
+        int|float $to = \INF,
     ) {
-        \assert($lte >= $gte, new \InvalidArgumentException(
-            'Min repetitions count must be greater or equal than max repetitions',
-        ));
+        \assert($to >= $from, 'Min repetitions count must be greater or equal than max repetitions');
 
-        $this->from = $gte;
-        $this->to = \is_infinite($lte) ? \INF : (int) $lte;
-    }
-
-    public function getTerminals(array $rules): iterable
-    {
-        if (!isset($rules[$this->rule])) {
-            return [];
-        }
-
-        return $rules[$this->rule]->getTerminals($rules);
+        $this->to = \is_infinite($to) ? \INF : (int)$to;
     }
 
     public function reduce(BufferInterface $buffer, \Closure $reduce): ?iterable
     {
         $children = [];
         $iterations = 0;
-
         $global = $buffer->key();
 
         do {
-            $inRange = $iterations >= $this->from && $iterations <= $this->to;
+            $inRange  = $iterations >= $this->from && $iterations <= $this->to;
             $rollback = $buffer->key();
 
             if (($result = $reduce($this->rule)) === null) {
@@ -68,7 +50,12 @@ final class Repetition extends Production
                 return $children;
             }
 
-            $children = $this->mergeWith($children, $result);
+            if (\is_array($result)) {
+                $children = [...$children, ...$result];
+            } else {
+                $children[] = $result;
+            }
+
             ++$iterations;
         } while ($result !== null);
 

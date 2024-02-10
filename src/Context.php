@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace Phplrt\Parser;
 
-use Phplrt\Buffer\BufferInterface;
-use Phplrt\Contracts\Ast\NodeInterface;
 use Phplrt\Contracts\Lexer\TokenInterface;
 use Phplrt\Contracts\Source\ReadableInterface;
+use Phplrt\Parser\Buffer\BufferInterface;
 use Phplrt\Parser\Context\ContextOptionsProviderInterface;
 use Phplrt\Parser\Context\ContextOptionsTrait;
 use Phplrt\Parser\Grammar\RuleInterface;
@@ -16,9 +15,9 @@ use Phplrt\Parser\Grammar\RuleInterface;
  * This is an internal implementation of parser mechanisms and modifying the
  * value of fields outside can disrupt the operation of parser's algorithms.
  *
- * The presence of public modifiers in fields is required only to speed up the
- * parser, since direct access is several times faster than using methods of
- * setting values or creating a new class at each step of the parser.
+ * The presence of public modifiers in fields is required only to speed up
+ * the parser, since direct access is several times faster than using methods
+ * of setting values or creating a new class at each step of the parser.
  */
 final class Context implements ContextOptionsProviderInterface
 {
@@ -26,67 +25,71 @@ final class Context implements ContextOptionsProviderInterface
 
     /**
      * Contains the most recent token object in the token list
-     * (buffer) which was last successfully processed in the rules chain.
+     * (buffer) which was last successfully processed in the ALL rules chain.
      *
      * It is required so that in case of errors it is possible to report that
      * it was on it that the problem arose.
      *
      * Please note that this value contains the last in the list of processed
      * ones, and not the last in time that was processed.
+     *
+     * @readonly Changing of this value is only available while the parser
+     *           is running. Please do not manually change this value.
+     * @psalm-readonly
      */
-    public ?TokenInterface $lastOrdinalToken = null;
+    public ?TokenInterface $lastProcessedToken = null;
 
     /**
      * Contains the token object which was last successfully processed
-     * in the rules chain.
+     * in the CURRENT rule.
      *
      * Please note that this value contains the last token in time, and not
-     * the last in order in the buffer, unlike the value of "$lastOrdinalToken".
+     * the last in order in the buffer, unlike the value of
+     * the {@see $lastProcessedToken}.
+     *
+     * @readonly Changing of this value is only available while the parser
+     *           is running. Please do not manually change this value.
+     * @psalm-readonly
      */
-    public TokenInterface $lastProcessedToken;
+    public TokenInterface $token;
 
     /**
-     * Contains the NodeInterface object which was last successfully
+     * Contains the AST node object which was last successfully
      * processed while parsing.
+     *
+     * @readonly Changing of this value is only available while the parser
+     *           is running. Please do not manually change this value.
+     * @psalm-readonly
      */
-    public ?NodeInterface $node = null;
+    public ?object $node = null;
 
     /**
      * Contains the parser's current rule.
+     *
+     * @readonly Changing of this value is only available while the parser
+     *           is running. Please do not manually change this value.
+     * @psalm-readonly
      */
     public ?RuleInterface $rule = null;
 
     /**
-     * Contains the identifier of the current state of the parser.
-     *
-     * Note: This is a stateful data and may cause a race condition error. In
-     * the future, it is necessary to delete this data with a replacement for
-     * the stateless structure.
-     */
-    public int|string $state;
-
-    /**
-     * Contains information about the processed source.
-     */
-    public readonly ReadableInterface $source;
-
-    /**
-     * Contains a buffer of tokens that were collected from lexical analysis.
-     */
-    public readonly BufferInterface $buffer;
-
-    /**
-     * @param array-key $state
+     * @param ReadableInterface $source Contains information about the
+     *        processed source.
+     * @param BufferInterface $buffer  Contains a buffer of tokens that
+     *        were collected from lexical analysis.
+     * @param int<0, max>|non-empty-string $state Contains the identifier
+     *        of the current state of the parser.
      * @param array<non-empty-string, mixed> $options
      */
-    public function __construct(BufferInterface $buffer, ReadableInterface $source, int|string $state, array $options)
-    {
-        $this->state = $state;
-        $this->source = $source;
-        $this->buffer = $buffer;
+    public function __construct(
+        public readonly ReadableInterface $source,
+        public readonly BufferInterface $buffer,
+        public int|string $state,
+        array $options,
+    ) {
         $this->options = $options;
 
-        $this->lastOrdinalToken = $this->lastProcessedToken = $this->buffer->current();
+        $this->lastProcessedToken = $this->token = $this->buffer->current();
     }
 
     public function getBuffer(): BufferInterface
@@ -99,7 +102,7 @@ final class Context implements ContextOptionsProviderInterface
         return $this->source;
     }
 
-    public function getNode(): ?NodeInterface
+    public function getNode(): ?object
     {
         return $this->node;
     }
@@ -113,10 +116,10 @@ final class Context implements ContextOptionsProviderInterface
 
     public function getToken(): TokenInterface
     {
-        return $this->lastProcessedToken;
+        return $this->token;
     }
 
-    public function getState()
+    public function getState(): int|string
     {
         assert($this->state !== null, 'Context not initialized');
 

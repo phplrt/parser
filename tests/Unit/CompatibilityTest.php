@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Phplrt\Parser\Tests\Unit;
 
-use Phplrt\Buffer\BufferInterface;
 use Phplrt\Contracts\Lexer\TokenInterface;
+use Phplrt\Parser\Buffer\BufferInterface;
 use Phplrt\Parser\BuilderInterface;
 use Phplrt\Parser\Context;
 use Phplrt\Parser\Context\ContextOptionsProviderInterface;
@@ -29,16 +29,7 @@ class CompatibilityTest extends TestCase
         self::expectNotToPerformAssertions();
 
         new class () implements BuilderInterface {
-            public function build(Context $context, $result) {}
-        };
-    }
-
-    public function testBuilderWithMixedCompatibility(): void
-    {
-        self::expectNotToPerformAssertions();
-
-        new class () implements BuilderInterface {
-            public function build(Context $context, mixed $result) {}
+            public function build(Context $context, mixed $result): mixed {}
         };
     }
 
@@ -54,7 +45,7 @@ class CompatibilityTest extends TestCase
         self::expectNotToPerformAssertions();
 
         new class () implements ProductionInterface {
-            public function reduce(BufferInterface $buffer, \Closure $reduce) {}
+            public function reduce(BufferInterface $buffer, \Closure $reduce): mixed {}
             public function getTerminals(array $rules): iterable {}
         };
     }
@@ -102,18 +93,7 @@ class CompatibilityTest extends TestCase
 
         new class () implements ContextOptionsProviderInterface {
             public function getOptions(): array {}
-            public function getOption(string $name, $default = null) {}
-            public function hasOption(string $name): bool {}
-        };
-    }
-
-    public function testContextOptionsProviderWithMixedCompatibility(): void
-    {
-        self::expectNotToPerformAssertions();
-
-        new class () implements ContextOptionsProviderInterface {
-            public function getOptions(): array {}
-            public function getOption(string $name, mixed $default = null) {}
+            public function getOption(string $name, mixed $default = null): mixed {}
             public function hasOption(string $name): bool {}
         };
     }

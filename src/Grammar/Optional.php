@@ -4,27 +4,19 @@ declare(strict_types=1);
 
 namespace Phplrt\Parser\Grammar;
 
-use Phplrt\Buffer\BufferInterface;
+use Phplrt\Parser\Buffer\BufferInterface;
 
-final class Optional extends Production
+class Optional extends Production
 {
     /**
-     * @param array-key $rule
+     * @param int<0, max>|non-empty-string $rule
      */
     public function __construct(
         public readonly int|string $rule,
-    ) {}
-
-    public function getTerminals(array $rules): iterable
-    {
-        if (!isset($rules[$this->rule])) {
-            return [];
-        }
-
-        return $rules[$this->rule]->getTerminals($rules);
+    ) {
     }
 
-    public function reduce(BufferInterface $buffer, \Closure $reduce)
+    public function reduce(BufferInterface $buffer, \Closure $reduce): mixed
     {
         $rollback = $buffer->key();
 

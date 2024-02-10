@@ -4,43 +4,35 @@ declare(strict_types=1);
 
 namespace Phplrt\Parser\Grammar;
 
-use Phplrt\Buffer\BufferInterface;
+use Phplrt\Parser\Buffer\BufferInterface;
 
-final class Concatenation extends Production
+class Concatenation extends Production
 {
     /**
-     * @param non-empty-list<array-key> $sequence
+     * @param non-empty-list<int<0, max>|non-empty-string> $sequence
      */
     public function __construct(
         public readonly array $sequence,
-    ) {}
-
-    public function getTerminals(array $rules): iterable
-    {
-        $result = [];
-
-        foreach ($this->sequence as $rule) {
-            foreach ($rules[$rule]->getTerminals($rules) as $terminal) {
-                $result[] = $terminal;
-            }
-        }
-
-        return $result;
+    ) {
     }
 
     public function reduce(BufferInterface $buffer, \Closure $reduce): ?iterable
     {
-        $revert = $buffer->key();
+        $offset = $buffer->key();
         $children = [];
 
         foreach ($this->sequence as $rule) {
             if (($result = $reduce($rule)) === null) {
-                $buffer->seek($revert);
+                $buffer->seek($offset);
 
                 return null;
             }
 
-            $children = $this->mergeWith($children, $result);
+            if (\is_array($result)) {
+                $children = [...$children, ...$result];
+            } else {
+                $children[] = $result;
+            }
         }
 
         return $children;
