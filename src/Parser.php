@@ -4,28 +4,28 @@ declare(strict_types=1);
 
 namespace Phplrt\Parser;
 
-use Phplrt\Contracts\Lexer\Channel;
-use Phplrt\Contracts\Lexer\LexerExceptionInterface;
+use Phplrt\Buffer\BufferInterface;
+use Phplrt\Contracts\Ast\NodeInterface;
+use Phplrt\Contracts\Exception\RuntimeExceptionInterface;
 use Phplrt\Contracts\Lexer\LexerInterface;
-use Phplrt\Contracts\Lexer\LexerRuntimeExceptionInterface;
+use Phplrt\Contracts\Lexer\TokenInterface;
 use Phplrt\Contracts\Parser\ParserInterface;
 use Phplrt\Contracts\Source\ReadableInterface;
-use Phplrt\Parser\Buffer\BufferInterface;
-use Phplrt\Parser\Buffer\Factory;
-use Phplrt\Parser\Buffer\FactoryInterface;
+use Phplrt\Contracts\Source\SourceExceptionInterface;
+use Phplrt\Contracts\Source\SourceFactoryInterface;
+use Phplrt\Lexer\Driver\DriverInterface;
 use Phplrt\Parser\Context\TreeBuilder;
 use Phplrt\Parser\Environment\Factory as EnvironmentFactory;
 use Phplrt\Parser\Environment\SelectorInterface;
-use Phplrt\Parser\Exception\LexerInitializationException;
+use Phplrt\Parser\Exception\ParserRuntimeException;
 use Phplrt\Parser\Exception\UnexpectedTokenException;
 use Phplrt\Parser\Exception\UnrecognizedTokenException;
+use Phplrt\Parser\Grammar\Lexeme;
 use Phplrt\Parser\Grammar\ProductionInterface;
 use Phplrt\Parser\Grammar\RuleInterface;
-use Phplrt\Parser\Middleware\HandlerInterface;
-use Phplrt\Parser\Middleware\Pipeline;
-use Phplrt\Parser\Middleware\Pipeline\ClosureHandler;
-use Phplrt\Parser\Middleware\PipelineInterface;
+use Phplrt\Parser\Grammar\TerminalInterface;
 use Phplrt\Source\File;
+use Phplrt\Source\SourceFactory;
 
 /**
  * A recurrence recursive descent parser implementation.
@@ -60,70 +60,104 @@ use Phplrt\Source\File;
  *      *)
  * </code>
  */
-final class Parser implements ParserInterface
+final class Parser implements ParserInterface, ParserConfigsInterface
 {
+    use ParserConfigsTrait;
+
     /**
-     * The {@see BuilderInterface} is responsible for building
-     * the Abstract Syntax Tree.
+     * @var non-empty-string
      */
-    private BuilderInterface $builder;
+    private const ERROR_BUFFER_TYPE = 'Buffer class should implement %s interface';
+
+    /**
+     * The lexer instance.
+     *
+     * @psalm-readonly-allow-private-mutation
+     */
+    private LexerInterface $lexer;
 
     /**
      * The {@see SelectorInterface} is responsible for preparing
      * and analyzing the PHP environment for the parser to work.
+     *
+     * @psalm-readonly-allow-private-mutation
      */
-    private readonly SelectorInterface $env;
+    private SelectorInterface $env;
+
+    /**
+     * The {@see BuilderInterface} is responsible for building the Abstract
+     * Syntax Tree.
+     *
+     * @psalm-readonly-allow-private-mutation
+     */
+    private BuilderInterface $builder;
+
+    /**
+     * Sources factory.
+     *
+     * @psalm-readonly-allow-private-mutation
+     */
+    private SourceFactoryInterface $sources;
 
     /**
      * The initial state (initial rule identifier) of the parser.
      *
-     * @var non-empty-string|int
+     * @var array-key|null
+     * @psalm-readonly-allow-private-mutation
      */
-    private readonly string|int $initial;
+    private $initial;
 
     /**
-     * Contains an initializing pipeline handler (the {@see next()} method).
+     * Array of transition rules for the parser.
+     *
+     * @var array<array-key, RuleInterface>
+     *
+     * @readonly
+     * @psalm-readonly-allow-private-mutation
      */
-    private readonly HandlerInterface $handler;
+    private array $rules = [];
 
-    /**
-     * Contains last execution context.
-     */
     private ?Context $context = null;
 
     /**
-     * @param LexerInterface $lexer A Lexer implementation instance.
-     * @param array<int|non-empty-string, RuleInterface> $grammar Array of
+     * @param iterable<array-key, RuleInterface> $grammar An iterable of the
      *        transition rules for the parser.
-     * @param BuilderInterface|array<int|non-empty-string, \Closure(Context,mixed):mixed> $builder
-     * @param non-empty-string|int<0, max>|null $initial Initial rule/state
-     *        identifier name.
-     * @param array<non-empty-string, mixed> $options Arbitrary parser options
-     *        to be passed to the execution context ({@see Context::$options}).
+     * @param array<ParserConfigsInterface::CONFIG_*, mixed> $options
      */
     public function __construct(
-        private readonly LexerInterface $lexer,
-        private readonly array $grammar,
-        int|string|null $initial = null,
-        BuilderInterface|array $builder = [],
-        private readonly PipelineInterface $pipeline = new Pipeline(),
-        private readonly FactoryInterface $buffer = new Factory(),
-        private readonly array $options = [],
+        LexerInterface $lexer,
+        iterable $grammar = [],
+        array $options = [],
+        ?SourceFactoryInterface $sources = null
     ) {
+        $this->lexer = $lexer;
         $this->env = new EnvironmentFactory();
-        $this->builder = self::bootBuilder($builder);
-        $this->initial = self::bootInitialRule($initial, $this->grammar);
-        $this->handler = new ClosureHandler($this->next(...));
+
+        $this->rules = self::bootGrammar($grammar);
+        $this->builder = self::bootBuilder($options);
+        $this->initial = self::bootInitialRule($options, $this->rules);
+        $this->sources = self::bootSourcesFactory($sources);
+
+        $this->bootParserConfigsTrait($options);
+    }
+
+    private static function bootSourcesFactory(?SourceFactoryInterface $factory): SourceFactoryInterface
+    {
+        return $factory ?? new SourceFactory();
     }
 
     /**
-     * The method is responsible for initializing the
-     * Abstract Syntax Tree builder.
-     *
-     * @param BuilderInterface|array<int|non-empty-string, callable(Context, mixed):mixed> $builder
+     * @param array{
+     *     builder?: BuilderInterface|iterable<int|non-empty-string, \Closure(Context,mixed):mixed>|null
+     * } $options
      */
-    private static function bootBuilder(BuilderInterface|array $builder): BuilderInterface
+    private static function bootBuilder(array $options): BuilderInterface
     {
+        /**
+         * @var BuilderInterface|iterable<int|non-empty-string, \Closure(Context,mixed):mixed> $builder
+         */
+        $builder = $options[self::CONFIG_AST_BUILDER] ?? [];
+
         if ($builder instanceof BuilderInterface) {
             return $builder;
         }
@@ -132,130 +166,225 @@ final class Parser implements ParserInterface
     }
 
     /**
+     * @param iterable<array-key, RuleInterface> $grammar
+     *
+     * @return array<array-key, RuleInterface>
+     */
+    private static function bootGrammar(iterable $grammar): array
+    {
+        if ($grammar instanceof \Traversable) {
+            return \iterator_to_array($grammar);
+        }
+
+        return $grammar;
+    }
+
+    /**
      * The method is responsible for initializing the initial
      * state of the grammar.
      *
-     * @param non-empty-string|int<0, max>|null $initial
-     * @return non-empty-string|int<0, max>
+     * @param array{
+     *     initial?: array-key|null
+     * } $options
+     * @param array<array-key, RuleInterface> $grammar
+     *
+     * @return array-key
      */
-    private static function bootInitialRule(int|string|null $initial, array $grammar): int|string
+    private static function bootInitialRule(array $options, array $grammar)
     {
+        $initial = $options[self::CONFIG_INITIAL_RULE] ?? null;
+
         if ($initial !== null) {
             return $initial;
         }
 
         $result = \array_key_first($grammar);
 
-        if ($result === false) {
+        if ($result === false || $result === null) {
             return 0;
         }
 
         return $result;
     }
 
-    public function parse(mixed $source, array $options = []): iterable
+    /**
+     * Sets an initial state (initial rule identifier) of the parser.
+     *
+     * @param array-key $initial
+     *
+     * @deprecated since phplrt 3.4 and will be removed in 4.0
+     */
+    public function startsAt($initial): self
     {
-        $source = File::new($source);
+        $this->initial = $initial;
 
-        if ($this->grammar === []) {
+        return $this;
+    }
+
+    /**
+     * Sets an abstract syntax tree builder.
+     *
+     * @deprecated since phplrt 3.4 and will be removed in 4.0
+     */
+    public function buildUsing(BuilderInterface $builder): self
+    {
+        $this->builder = $builder;
+
+        return $this;
+    }
+
+    /**
+     * @param array<non-empty-string, mixed> $options
+     * @return iterable<array-key, object>
+     *
+     * @throws SourceExceptionInterface
+     */
+    public function parse($source, array $options = []): iterable
+    {
+        if ($this->rules === []) {
             return [];
         }
 
         $this->env->prepare();
 
+        $source = $this->sources->create($source);
+
         try {
-            $this->context = $this->createExecutionContext($source, $options);
-            $this->context->rule = $this->grammar[$this->context->state];
+            $buffer = $this->createBufferFromSource($source);
 
-            $result = $this->pipeline->process($this->context, $this->handler);
+            $this->context = new Context($buffer, $source, $this->initial, $options);
 
-            if (\is_iterable($result) && $this->isEoi($this->context->buffer)) {
-                return $result;
-            }
-
-            throw UnexpectedTokenException::fromUnexpectedToken(
-                $this->context->getSource(),
-                $this->context->lastProcessedToken ?? $this->context->buffer->current(),
-            );
+            return $this->parseOrFail($this->context);
         } finally {
             $this->env->rollback();
         }
     }
 
-    /**
-     * Creates a parsing execution context.
-     *
-     * @param array<non-empty-string, mixed> $options User options that are
-     *        passed to the execution context.
-     */
-    private function createExecutionContext(ReadableInterface $source, array $options): Context
+    private function createBufferFromTokens(iterable $stream): BufferInterface
     {
-        $buffer = $this->createExecutionBuffer($source);
+        \assert(
+            \is_subclass_of($this->buffer, BufferInterface::class),
+            \sprintf(self::ERROR_BUFFER_TYPE, BufferInterface::class)
+        );
 
-        return new Context($source, $buffer, $this->initial, [...$this->options, ...$options]);
+        $class = $this->buffer;
+
+        return new $class($stream);
     }
 
-    /**
-     * Creates a temporary buffer from tokens for subsequent parsing
-     * and building a syntax tree.
-     *
-     * @throws UnrecognizedTokenException Occurs when errors occur during
-     *         lexical analysis execution.
-     * @throws LexerInitializationException Occurs in case of lexer
-     *         initialization errors.
-     */
-    private function createExecutionBuffer(ReadableInterface $source): BufferInterface
+    private function createBufferFromSource(ReadableInterface $source): BufferInterface
     {
         try {
-            return $this->buffer->create(
-                $this->lexer->lex($source)
+            return $this->createBufferFromTokens(
+                $this->lexer->lex(File::new($source)),
             );
-        } catch (LexerRuntimeExceptionInterface $e) {
-            throw UnrecognizedTokenException::fromUnrecognizedToken($source, $e->getToken(), $e);
-        } catch (LexerExceptionInterface $e) {
-            throw LexerInitializationException::fromLexerException($e);
+        } catch (RuntimeExceptionInterface $e) {
+            throw UnrecognizedTokenException::fromLexerException($e);
         }
     }
 
-    private function next(Context $context): mixed
+    /**
+     * @throws ParserRuntimeException
+     */
+    private function parseOrFail(Context $context): iterable
     {
-        $context->rule = $this->grammar[$context->state];
+        $result = $this->next($context);
 
-        if ($context->rule instanceof ProductionInterface) {
-            $result = $context->rule->reduce($context->buffer, function ($state) use ($context): mixed {
-                // Keep current state
-                $previousState = $context->state;
-                $previousToken = $context->token;
-                $previousRule  = $context->rule;
+        if (\is_iterable($result)
+            && ($this->allowTrailingTokens || $this->isEoi($context->buffer))
+        ) {
+            return $result;
+        }
 
-                // Update state
-                $context->state = $state;
-                $context->token = $context->buffer->current();
-                $context->rule  = $this->grammar[$context->state];
+        $token = $context->lastOrdinalToken ?? $context->buffer->current();
 
-                $result = $this->pipeline->process($context, $this->handler);
+        throw UnexpectedTokenException::fromToken(
+            $context->getSource(),
+            $token,
+            null,
+            $this->lookupExpectedTokens($context),
+        );
+    }
 
-                // Rollback previous state
-                $context->state = $previousState;
-                $context->token = $previousToken;
-                $context->rule  = $previousRule;
+    /**
+     * @return list<non-empty-string>
+     */
+    private function lookupExpectedTokens(Context $context): array
+    {
+        $rule = $context->rule ?? $this->rules[$this->initial];
 
-                return $result;
-            });
-        } else {
-            $result = $context->rule->reduce($context->buffer);
+        $tokens = [];
 
-            if ($result !== null) {
-                $context->buffer->next();
-
-                if ($context->buffer->current()->getOffset() > $context->lastProcessedToken->getOffset()) {
-                    $context->lastProcessedToken = $context->buffer->current();
-                }
-
-                if (!$context->rule->isKeep()) {
-                    return [];
-                }
+        foreach ($rule->getTerminals($this->rules) as $terminal) {
+            if ($terminal instanceof Lexeme && \is_string($terminal->token)) {
+                $tokens[$terminal->token] = $terminal->token;
             }
+
+            if (\count($tokens) >= 3) {
+                break;
+            }
+        }
+
+        return \array_values($tokens);
+    }
+
+    /**
+     * @return mixed
+     */
+    private function next(Context $context)
+    {
+        if ($this->step !== null) {
+            return ($this->step)($context, function () use ($context) {
+                return $this->runNextStep($context);
+            });
+        }
+
+        return $this->runNextStep($context);
+    }
+
+    private function runNextStep(Context $context)
+    {
+        $context->rule = $this->rules[$context->state];
+        $result = null;
+
+        switch (true) {
+            case $context->rule instanceof ProductionInterface:
+                $result = $context->rule->reduce($context->buffer, function ($state) use ($context) {
+                    // Keep current state
+                    $beforeState = $context->state;
+                    $beforeLastProcessedToken = $context->lastProcessedToken;
+
+                    // Update state
+                    $context->state = $state;
+                    $context->lastProcessedToken = $context->buffer->current();
+
+                    $result = $this->next($context);
+
+                    // Rollback previous state
+                    $context->state = $beforeState;
+                    $context->lastProcessedToken = $beforeLastProcessedToken;
+
+                    return $result;
+                });
+
+                break;
+
+            case $context->rule instanceof TerminalInterface:
+                $result = $context->rule->reduce($context->buffer);
+
+                if ($result !== null) {
+                    $context->buffer->next();
+
+                    if ($context->buffer->current()->getOffset() > $context->lastOrdinalToken->getOffset()) {
+                        $context->lastOrdinalToken = $context->buffer->current();
+                    }
+
+                    if (!$context->rule->isKeep()) {
+                        return [];
+                    }
+                }
+
+                break;
         }
 
         if ($result === null) {
@@ -264,7 +393,7 @@ final class Parser implements ParserInterface
 
         $result = $this->builder->build($context, $result) ?? $result;
 
-        if (\is_object($result)) {
+        if ($result instanceof NodeInterface) {
             $context->node = $result;
         }
 
@@ -278,7 +407,7 @@ final class Parser implements ParserInterface
     {
         $current = $buffer->current();
 
-        return $current->getChannel() === Channel::EOI;
+        return $current->getName() === $this->eoi;
     }
 
     /**
@@ -293,8 +422,6 @@ final class Parser implements ParserInterface
      *  $context = $parser->getLastExecutionContext();
      *  var_dump($context->buffer->current()); // Returns the token where the parser stopped
      * ```
-     *
-     * @api
      */
     public function getLastExecutionContext(): ?Context
     {

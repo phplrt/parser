@@ -6,20 +6,56 @@ namespace Phplrt\Parser\Exception;
 
 use Phplrt\Contracts\Lexer\TokenInterface;
 use Phplrt\Contracts\Source\ReadableInterface;
-use Phplrt\Lexer\Printer\PrettyPrinter;
 
 class UnexpectedTokenException extends UnrecognizedTokenException
 {
-    final public const CODE_UNEXPECTED_TOKEN = 0x01 + parent::CODE_LAST;
+    public const ERROR_UNRECOGNIZED_TOKEN = 'Syntax error, unexpected %s';
 
-    protected const CODE_LAST = self::CODE_UNEXPECTED_TOKEN;
+    /**
+     * @param list<non-empty-string> $expected
+     */
+    public static function fromToken(
+        ReadableInterface $src,
+        TokenInterface $tok,
+        \Throwable $prev = null,
+        array $expected = []
+    ): self {
+        switch (\count($expected)) {
+            case 0:
+                $message = \vsprintf(self::ERROR_UNRECOGNIZED_TOKEN, [
+                    self::getTokenValue($tok),
+                ]);
 
-    public static function fromUnexpectedToken(ReadableInterface $src, TokenInterface $tok, \Throwable $previous = null): self
+                return new static($message, $src, $tok, $prev);
+
+            case 1:
+                $message = \vsprintf('Syntax error, unexpected %s, %s is expected', [
+                    self::getTokenValue($tok),
+                    self::formatTokenNames($expected),
+                ]);
+
+                return new static($message, $src, $tok, $prev);
+
+            default:
+                $message = \vsprintf('Syntax error, unexpected %s, one of %s is expected', [
+                    self::getTokenValue($tok),
+                    self::formatTokenNames($expected),
+                ]);
+
+                return new static($message, $src, $tok, $prev);
+        }
+    }
+
+    /**
+     * @param list<non-empty-string> $tokens
+     *
+     * @return ($tokens is non-empty-list<non-empty-string> ? non-empty-string : string)
+     */
+    private static function formatTokenNames(array $tokens): string
     {
-        $message = \vsprintf('Syntax error, unexpected %s', [
-            (new PrettyPrinter())->printToken($tok),
-        ]);
-
-        return new static($src, $tok, $message, self::CODE_UNEXPECTED_TOKEN, $previous);
+        return \implode(', ', \array_map(
+            static fn(string $t): string => \sprintf('"%s"', $t),
+            $tokens,
+        ));
     }
 }

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Phplrt\Parser;
 
+use Phplrt\Buffer\BufferInterface;
+use Phplrt\Contracts\Ast\NodeInterface;
 use Phplrt\Contracts\Lexer\TokenInterface;
 use Phplrt\Contracts\Source\ReadableInterface;
-use Phplrt\Parser\Buffer\BufferInterface;
-use Phplrt\Parser\Context\ContextOptionsProviderInterface;
 use Phplrt\Parser\Context\ContextOptionsTrait;
 use Phplrt\Parser\Grammar\RuleInterface;
 
@@ -15,81 +15,90 @@ use Phplrt\Parser\Grammar\RuleInterface;
  * This is an internal implementation of parser mechanisms and modifying the
  * value of fields outside can disrupt the operation of parser's algorithms.
  *
- * The presence of public modifiers in fields is required only to speed up
- * the parser, since direct access is several times faster than using methods
- * of setting values or creating a new class at each step of the parser.
+ * The presence of public modifiers in fields is required only to speed up the
+ * parser, since direct access is several times faster than using methods of
+ * setting values or creating a new class at each step of the parser.
+ *
+ * @property-read ReadableInterface $source
+ * @property-read BufferInterface $buffer
+ *
+ * @final marked as final since phplrt 3.4 and will be final since 4.0
  */
-final class Context implements ContextOptionsProviderInterface
+class Context implements ContextInterface
 {
     use ContextOptionsTrait;
 
     /**
      * Contains the most recent token object in the token list
-     * (buffer) which was last successfully processed in the ALL rules chain.
+     * (buffer) which was last successfully processed in the rules chain.
      *
      * It is required so that in case of errors it is possible to report that
      * it was on it that the problem arose.
      *
      * Please note that this value contains the last in the list of processed
      * ones, and not the last in time that was processed.
-     *
-     * @readonly Changing of this value is only available while the parser
-     *           is running. Please do not manually change this value.
-     * @psalm-readonly
      */
-    public ?TokenInterface $lastProcessedToken = null;
+    public ?TokenInterface $lastOrdinalToken = null;
 
     /**
      * Contains the token object which was last successfully processed
-     * in the CURRENT rule.
+     * in the rules chain.
      *
      * Please note that this value contains the last token in time, and not
-     * the last in order in the buffer, unlike the value of
-     * the {@see $lastProcessedToken}.
-     *
-     * @readonly Changing of this value is only available while the parser
-     *           is running. Please do not manually change this value.
-     * @psalm-readonly
+     * the last in order in the buffer, unlike the value of "$lastOrdinalToken".
      */
-    public TokenInterface $token;
+    public TokenInterface $lastProcessedToken;
 
     /**
-     * Contains the AST node object which was last successfully
+     * Contains the NodeInterface object which was last successfully
      * processed while parsing.
-     *
-     * @readonly Changing of this value is only available while the parser
-     *           is running. Please do not manually change this value.
-     * @psalm-readonly
      */
-    public ?object $node = null;
+    public ?NodeInterface $node = null;
 
     /**
      * Contains the parser's current rule.
-     *
-     * @readonly Changing of this value is only available while the parser
-     *           is running. Please do not manually change this value.
-     * @psalm-readonly
      */
     public ?RuleInterface $rule = null;
 
     /**
-     * @param ReadableInterface $source Contains information about the
-     *        processed source.
-     * @param BufferInterface $buffer  Contains a buffer of tokens that
-     *        were collected from lexical analysis.
-     * @param int<0, max>|non-empty-string $state Contains the identifier
-     *        of the current state of the parser.
+     * Contains the identifier of the current state of the parser.
+     *
+     * Note: This is a stateful data and may cause a race condition error. In
+     * the future, it is necessary to delete this data with a replacement for
+     * the stateless structure.
+     *
+     * @var array-key
+     */
+    public $state;
+
+    /**
+     * Contains information about the processed source.
+     *
+     * @readonly marked as readonly since phplrt 3.4 and will be readonly since 4.0
+     * @psalm-readonly-allow-private-mutation
+     */
+    public ReadableInterface $source;
+
+    /**
+     * Contains a buffer of tokens that were collected from lexical analysis.
+     *
+     * @readonly marked as readonly since phplrt 3.4 and will be readonly since 4.0
+     * @psalm-readonly-allow-private-mutation
+     */
+    public BufferInterface $buffer;
+
+    /**
+     * @param array-key $state
      * @param array<non-empty-string, mixed> $options
      */
-    public function __construct(
-        public readonly ReadableInterface $source,
-        public readonly BufferInterface $buffer,
-        public int|string $state,
-        array $options,
-    ) {
+    public function __construct(BufferInterface $buffer, ReadableInterface $source, $state, array $options)
+    {
+        $this->state = $state;
+        $this->source = $source;
+        $this->buffer = $buffer;
         $this->options = $options;
 
-        $this->lastProcessedToken = $this->token = $this->buffer->current();
+        $this->lastOrdinalToken = $this->lastProcessedToken = $this->buffer->current();
     }
 
     public function getBuffer(): BufferInterface
@@ -102,7 +111,7 @@ final class Context implements ContextOptionsProviderInterface
         return $this->source;
     }
 
-    public function getNode(): ?object
+    public function getNode(): ?NodeInterface
     {
         return $this->node;
     }
@@ -116,10 +125,10 @@ final class Context implements ContextOptionsProviderInterface
 
     public function getToken(): TokenInterface
     {
-        return $this->token;
+        return $this->lastProcessedToken;
     }
 
-    public function getState(): int|string
+    public function getState()
     {
         assert($this->state !== null, 'Context not initialized');
 

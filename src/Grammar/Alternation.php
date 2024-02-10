@@ -4,18 +4,43 @@ declare(strict_types=1);
 
 namespace Phplrt\Parser\Grammar;
 
-use Phplrt\Parser\Buffer\BufferInterface;
+use Phplrt\Buffer\BufferInterface;
 
+/**
+ * @final marked as final since phplrt 3.4 and will be final since 4.0
+ */
 class Alternation extends Production
 {
     /**
-     * @param non-empty-list<int<0, max>|non-empty-string> $sequence
+     * @var list<array-key>
+     *
+     * @readonly
+     * @psalm-readonly-allow-private-mutation
      */
-    public function __construct(
-        public readonly array $sequence,
-    ) {}
+    public array $sequence = [];
 
-    public function reduce(BufferInterface $buffer, \Closure $reduce): mixed
+    /**
+     * @param list<array-key> $sequence
+     */
+    public function __construct(array $sequence)
+    {
+        $this->sequence = $sequence;
+    }
+
+    public function getTerminals(array $rules): iterable
+    {
+        $result = [];
+
+        foreach ($this->sequence as $rule) {
+            foreach ($rules[$rule]->getTerminals($rules) as $terminal) {
+                $result[] = $terminal;
+            }
+        }
+
+        return $result;
+    }
+
+    public function reduce(BufferInterface $buffer, \Closure $reduce)
     {
         $rollback = $buffer->key();
 

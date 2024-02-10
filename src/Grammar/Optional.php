@@ -4,18 +4,39 @@ declare(strict_types=1);
 
 namespace Phplrt\Parser\Grammar;
 
-use Phplrt\Parser\Buffer\BufferInterface;
+use Phplrt\Buffer\BufferInterface;
 
+/**
+ * @final marked as final since phplrt 3.4 and will be final since 4.0
+ */
 class Optional extends Production
 {
     /**
-     * @param int<0, max>|non-empty-string $rule
+     * @var array-key
+     *
+     * @readonly
+     * @psalm-readonly-allow-private-mutation
      */
-    public function __construct(
-        public readonly int|string $rule,
-    ) {}
+    public $rule;
 
-    public function reduce(BufferInterface $buffer, \Closure $reduce): mixed
+    /**
+     * @param array-key $rule
+     */
+    public function __construct($rule)
+    {
+        $this->rule = $rule;
+    }
+
+    public function getTerminals(array $rules): iterable
+    {
+        if (!isset($rules[$this->rule])) {
+            return [];
+        }
+
+        return $rules[$this->rule]->getTerminals($rules);
+    }
+
+    public function reduce(BufferInterface $buffer, \Closure $reduce)
     {
         $rollback = $buffer->key();
 

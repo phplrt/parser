@@ -7,16 +7,21 @@ namespace Phplrt\Parser\Grammar;
 abstract class Terminal extends Rule implements TerminalInterface
 {
     /**
-     * @param bool $keep
+     * @readonly Should not be modified in runtime.
      */
-    public function __construct(
-        public readonly bool $keep,
-    ) {}
+    public bool $keep = true;
 
-    /**
-     * @return bool
-     */
-    public function isKeep(): bool
+    public function __construct(bool $keep)
+    {
+        $this->keep = $keep;
+    }
+
+    public function getTerminals(array $rules): iterable
+    {
+        return [$this];
+    }
+
+    final public function isKeep(): bool
     {
         return $this->keep;
     }

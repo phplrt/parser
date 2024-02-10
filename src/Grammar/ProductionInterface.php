@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Phplrt\Parser\Grammar;
 
-use Phplrt\Parser\Buffer\BufferInterface;
+use Phplrt\Buffer\BufferInterface;
 
 /**
  * Interface denoting a production (that is a non-terminal) rule.
@@ -37,9 +37,7 @@ interface ProductionInterface extends RuleInterface
      *  }
      * </code>
      *
-     * @param BufferInterface $buffer
-     * @param \Closure $reduce
      * @return mixed|iterable|null
      */
-    public function reduce(BufferInterface $buffer, \Closure $reduce): mixed;
+    public function reduce(BufferInterface $buffer, \Closure $reduce);
 }

@@ -11,16 +11,26 @@ use Phplrt\Parser\Context;
  * @internal This is an internal library class, please do not use it in your code.
  * @psalm-internal Phplrt\Parser
  */
-final class TreeBuilder implements BuilderInterface
+class TreeBuilder implements BuilderInterface
 {
     /**
-     * @param array<int<0, max>|non-empty-string, callable(Context, mixed):mixed> $reducers
+     * @var array<array-key, callable(Context, mixed):mixed>
      */
-    public function __construct(
-        private readonly array $reducers,
-    ) {}
+    private array $reducers;
 
-    public function build(Context $context, mixed $result): mixed
+    /**
+     * @param iterable<array-key, callable(Context, mixed):mixed> $reducers
+     */
+    public function __construct(iterable $reducers)
+    {
+        if ($reducers instanceof \Traversable) {
+            $reducers = \iterator_to_array($reducers);
+        }
+
+        $this->reducers = $reducers;
+    }
+
+    public function build(Context $context, $result)
     {
         if (isset($this->reducers[$context->state])) {
             return ($this->reducers[$context->state])($context, $result);

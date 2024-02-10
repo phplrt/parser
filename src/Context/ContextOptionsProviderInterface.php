@@ -17,9 +17,14 @@ interface ContextOptionsProviderInterface
     /**
      * Get the specified option value or $default argument instead.
      *
+     * @template TArgDefault of mixed
+     *
      * @param non-empty-string $name
+     * @param TArgDefault $default
+     *
+     * @return TArgDefault|mixed
      */
-    public function getOption(string $name, mixed $default = null): mixed;
+    public function getOption(string $name, $default = null);
 
     /**
      * Determine if the given option value exists.

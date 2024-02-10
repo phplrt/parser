@@ -7,16 +7,42 @@ namespace Phplrt\Parser\Environment;
 final class Factory implements SelectorInterface
 {
     /**
-     * @param list<SelectorInterface> $selectors
+     * @var list<SelectorInterface>
+     * @readonly
      */
-    public function __construct(
-        private readonly array $selectors = [
+    private array $selectors;
+
+    /**
+     * Factory "prepared" state.
+     */
+    private bool $isPrepared = false;
+
+    /**
+     * @param list<SelectorInterface>|null $selectors
+     */
+    public function __construct(?array $selectors = null)
+    {
+        $this->selectors = $selectors ?? $this->getDefaultSelectors();
+    }
+
+    /**
+     * @return list<SelectorInterface>
+     */
+    private function getDefaultSelectors(): array
+    {
+        return [
             new XdebugSelector(),
-        ],
-    ) {}
+        ];
+    }
 
     public function prepare(): void
     {
+        if ($this->isPrepared) {
+            return;
+        }
+
+        $this->isPrepared = true;
+
         foreach ($this->selectors as $handler) {
             $handler->prepare();
         }
@@ -24,8 +50,14 @@ final class Factory implements SelectorInterface
 
     public function rollback(): void
     {
+        if ($this->isPrepared === false) {
+            return;
+        }
+
         foreach ($this->selectors as $handler) {
             $handler->rollback();
         }
+
+        $this->isPrepared = false;
     }
 }

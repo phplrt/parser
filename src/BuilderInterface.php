@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Phplrt\Parser;
 
+use Phplrt\Contracts\Ast\NodeInterface;
+use Phplrt\Contracts\Lexer\TokenInterface;
+
 interface BuilderInterface
 {
     /**
-     * @return mixed|null
+     * @param NodeInterface|TokenInterface|iterable<NodeInterface|TokenInterface> $result
      */
-    public function build(Context $context, mixed $result): mixed;
+    public function build(Context $context, $result);
 }

@@ -4,43 +4,51 @@ declare(strict_types=1);
 
 namespace Phplrt\Parser\Exception;
 
+use Phplrt\Contracts\Exception\RuntimeExceptionInterface as ExceptionContract;
 use Phplrt\Contracts\Lexer\TokenInterface;
-use Phplrt\Contracts\Parser\ParserRuntimeExceptionInterface;
 use Phplrt\Contracts\Source\ReadableInterface;
-use Phplrt\Lexer\Printer\PrettyPrinter;
+use Phplrt\Lexer\Token\Renderer;
 
-class UnrecognizedTokenException extends \RuntimeException implements ParserRuntimeExceptionInterface
+class UnrecognizedTokenException extends ParserRuntimeException
 {
-    final public const CODE_UNRECOGNIZED_TOKEN = 0x01;
+    /**
+     * @var string
+     */
+    public const ERROR_UNRECOGNIZED_TOKEN = 'Syntax error, unrecognized %s';
 
-    protected const CODE_LAST = self::CODE_UNRECOGNIZED_TOKEN;
+    /**
+     * @var array{list<non-empty-string>, list<non-empty-string>}
+     */
+    private const DEFAULT_REPLACEMENTS = [
+        ["\0", "\n", "\t"],
+        ['\0', '\n', '\t'],
+    ];
 
-    final public function __construct(
-        private readonly ReadableInterface $source,
-        private readonly TokenInterface $token,
-        string $message,
-        int $code = 0,
-        \Throwable $previous = null
-    ) {
-        parent::__construct($message, $code, $previous);
+    public static function fromToken(ReadableInterface $src, TokenInterface $tok, \Throwable $prev = null): self
+    {
+        $message = \sprintf(self::ERROR_UNRECOGNIZED_TOKEN, self::getTokenValue($tok));
+
+        return new static($message, $src, $tok, $prev);
     }
 
-    public static function fromUnrecognizedToken(ReadableInterface $src, TokenInterface $tok, \Throwable $previous = null): self
+    public static function fromLexerException(ExceptionContract $e): self
     {
-        $message = \vsprintf('Syntax error, unrecognized %s', [
-            (new PrettyPrinter())->printToken($tok),
-        ]);
+        $token = $e->getToken();
+        $source = $e->getSource();
 
-        return new static($src, $tok, $message, self::CODE_UNRECOGNIZED_TOKEN, $previous);
+        return static::fromToken($source, $token, $e);
     }
 
-    public function getSource(): ReadableInterface
+    protected static function getTokenValue(TokenInterface $token): string
     {
-        return $this->source;
-    }
+        if (\class_exists(Renderer::class)) {
+            return (new Renderer())->render($token);
+        }
 
-    public function getToken(): TokenInterface
-    {
-        return $this->token;
+        $replacements = self::DEFAULT_REPLACEMENTS;
+
+        $value = \str_replace($replacements[0], $replacements[1], $token->getValue());
+
+        return \sprintf('"%s" (%s)', $value, $token->getName());
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Phplrt\Parser\Tests\Functional;
 
+use Phplrt\Contracts\Exception\RuntimeExceptionInterface;
 use Phplrt\Lexer\Lexer;
 use Phplrt\Lexer\Token\Token;
 use Phplrt\Parser\BuilderInterface;
@@ -13,12 +14,11 @@ use Phplrt\Parser\Grammar\Lexeme;
 use Phplrt\Parser\Grammar\Repetition;
 use Phplrt\Parser\Parser;
 use Phplrt\Parser\Tests\Functional\Stub\AstNode;
-use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\ExpectationFailedException;
 
-#[Group('phplrt/parser'), Group('functional')]
 class SimpleSumParserTest extends TestCase implements BuilderInterface
 {
-    public function build(Context $context, mixed $result): mixed
+    public function build(Context $context, $result)
     {
         if (\is_int($context->getState())) {
             return $result;
@@ -67,12 +67,10 @@ class SimpleSumParserTest extends TestCase implements BuilderInterface
             'suffix' => new Concatenation([1, 0]),
         ];
 
-        $parser = new Parser(
-            lexer: $lexer,
-            grammar: $grammar,
-            initial: 'sum',
-            builder: $this,
-        );
+        $parser = new Parser($lexer, $grammar, [
+            Parser::CONFIG_INITIAL_RULE => 'sum',
+            Parser::CONFIG_AST_BUILDER  => $this,
+        ]);
 
         return $parser->parse($expr);
     }

@@ -16,20 +16,30 @@
         }
     ],
     "require": {
-        "php": "^8.1",
-        "phplrt/lexer-contracts": "^4.0",
-        "phplrt/source-contracts": "^4.0",
-        "phplrt/parser-contracts": "^4.0"
+        "php": "^7.4|^8.0",
+        "phplrt/source": "^3.4",
+        "phplrt/buffer": "^3.4",
+        "phplrt/exception": "^3.4",
+        "phplrt/parser-contracts": "^3.4",
+        "phplrt/lexer-contracts": "^3.4",
+        "phplrt/ast-contracts": "^3.4"
+    },
+    "replace": {
+        "phplrt/grammar": "<=3.1",
+        "phplrt/grammar-contracts": "<=3.1"
     },
     "autoload": {
         "psr-4": {
             "Phplrt\\Parser\\": "src"
-        }
+        },
+        "files": [
+            "src/polyfill.php"
+        ]
     },
     "require-dev": {
-        "phplrt/visitor": "^4.0",
-        "phplrt/lexer": "^4.0",
-        "phpunit/phpunit": "^10.5|^11.0",
+        "phplrt/visitor": "^3.4",
+        "phplrt/lexer": "^3.4",
+        "phpunit/phpunit": "^9.6|^10.0",
         "vimeo/psalm": "^5.21",
         "jetbrains/phpstorm-attributes": "^1.0"
     },
@@ -39,12 +49,12 @@
         }
     },
     "provide": {
-        "phplrt/parser-contracts-implementation": "^4.0"
+        "phplrt/parser-contracts-implementation": "^3.4"
     },
     "extra": {
         "branch-alias": {
-            "dev-master": "4.x-dev",
-            "dev-main": "4.x-dev"
+            "dev-master": "3.x-dev",
+            "dev-main": "3.x-dev"
         }
     },
     "config": {
