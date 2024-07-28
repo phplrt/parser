@@ -19,7 +19,7 @@ class Builder implements \IteratorAggregate
     /**
      * @param \Closure():\Generator|null $generator
      */
-    public function __construct(?\Closure $generator = null)
+    public function __construct(\Closure $generator = null)
     {
         if ($generator !== null) {
             $this->extend($generator);
@@ -48,6 +48,7 @@ class Builder implements \IteratorAggregate
                 case \is_string($key) && $value instanceof RuleInterface:
                     $generator->send($this->add($value, $key));
                     continue 2;
+
                 case $value instanceof RuleInterface:
                     $generator->send($this->add($value));
                     continue 2;
@@ -93,7 +94,6 @@ class Builder implements \IteratorAggregate
 
     /**
      * @param non-empty-list<array-key> $args
-     *
      * @return array-key
      */
     private function unwrap(array $args)
@@ -126,7 +126,6 @@ class Builder implements \IteratorAggregate
 
     /**
      * @param array-key|null $id
-     *
      * @return array-key
      */
     public function add(RuleInterface $rule, $id = null)

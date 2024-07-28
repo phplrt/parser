@@ -26,7 +26,6 @@ abstract class TestCase extends BaseTestCase
 
             /**
              * @param NodeInterface|AstNode $node
-             *
              * @return mixed|void|null
              */
             public function enter(NodeInterface $node)

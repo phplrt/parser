@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace Phplrt\Parser\Context;
 
 /**
- * @psalm-require-implements ContextOptionsProviderInterface
- *
  * @mixin ContextOptionsProviderInterface
+ * @psalm-require-implements ContextOptionsProviderInterface
  */
 trait ContextOptionsTrait
 {

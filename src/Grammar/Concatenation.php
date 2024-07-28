@@ -15,7 +15,6 @@ class Concatenation extends Production
      * @var list<array-key>
      *
      * @readonly
-     *
      * @psalm-readonly-allow-private-mutation
      */
     public array $sequence = [];
