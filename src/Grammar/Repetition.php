@@ -15,6 +15,7 @@ class Repetition extends Production
      * @var int<0, max>
      *
      * @readonly
+     *
      * @psalm-readonly-allow-private-mutation
      */
     public int $gte;
@@ -23,6 +24,7 @@ class Repetition extends Production
      * @var int<0, max>|float
      *
      * @readonly
+     *
      * @psalm-readonly-allow-private-mutation
      */
     public $lte;
@@ -31,6 +33,7 @@ class Repetition extends Production
      * @var array-key
      *
      * @readonly
+     *
      * @psalm-readonly-allow-private-mutation
      */
     public $rule;
@@ -45,8 +48,8 @@ class Repetition extends Production
         \assert($lte >= $gte, 'Min repetitions count must be greater or equal than max repetitions');
 
         $this->rule = $rule;
-        $this->gte  = $gte;
-        $this->lte  = \is_infinite($lte) ? \INF : (int) $lte;
+        $this->gte = $gte;
+        $this->lte = \is_infinite($lte) ? \INF : (int) $lte;
     }
 
     public function getTerminals(array $rules): iterable
