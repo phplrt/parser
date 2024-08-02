@@ -12,21 +12,11 @@ use Phplrt\Buffer\BufferInterface;
 class Concatenation extends Production
 {
     /**
-     * @var list<array-key>
-     *
-     * @readonly
-     *
-     * @psalm-readonly-allow-private-mutation
-     */
-    public array $sequence = [];
-
-    /**
      * @param list<array-key> $sequence
      */
-    public function __construct(array $sequence)
-    {
-        $this->sequence = $sequence;
-    }
+    public function __construct(
+        public readonly array $sequence,
+    ) {}
 
     public function getTerminals(array $rules): iterable
     {

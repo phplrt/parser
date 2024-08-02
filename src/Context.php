@@ -17,13 +17,8 @@ use Phplrt\Parser\Grammar\RuleInterface;
  * The presence of public modifiers in fields is required only to speed up the
  * parser, since direct access is several times faster than using methods of
  * setting values or creating a new class at each step of the parser.
- *
- * @property-read ReadableInterface $source
- * @property-read BufferInterface $buffer
- *
- * @final marked as final since phplrt 3.4 and will be final since 4.0
  */
-class Context implements ContextInterface
+final class Context
 {
     use ContextOptionsTrait;
 
@@ -60,45 +55,29 @@ class Context implements ContextInterface
     public ?RuleInterface $rule = null;
 
     /**
-     * Contains the identifier of the current state of the parser.
-     *
-     * Note: This is a stateful data and may cause a race condition error. In
-     * the future, it is necessary to delete this data with a replacement for
-     * the stateless structure.
-     *
-     * @var array-key
-     */
-    public $state;
-
-    /**
-     * Contains information about the processed source.
-     *
-     * @readonly marked as readonly since phplrt 3.4 and will be readonly since 4.0
-     *
-     * @psalm-readonly-allow-private-mutation
-     */
-    public ReadableInterface $source;
-
-    /**
-     * Contains a buffer of tokens that were collected from lexical analysis.
-     *
-     * @readonly marked as readonly since phplrt 3.4 and will be readonly since 4.0
-     *
-     * @psalm-readonly-allow-private-mutation
-     */
-    public BufferInterface $buffer;
-
-    /**
      * @param array-key $state
      * @param array<non-empty-string, mixed> $options
      */
-    public function __construct(BufferInterface $buffer, ReadableInterface $source, int|string $state, array $options)
-    {
-        $this->state = $state;
-        $this->source = $source;
-        $this->buffer = $buffer;
+    public function __construct(
+        /**
+         * Contains a buffer of tokens that were collected from lexical analysis.
+         */
+        public readonly BufferInterface $buffer,
+        /**
+         * Contains information about the processed source.
+         */
+        public readonly ReadableInterface $source,
+        /**
+         * Contains the identifier of the current state of the parser.
+         *
+         * Note: This is a stateful data and may cause a race condition error. In
+         * the future, it is necessary to delete this data with a replacement for
+         * the stateless structure.
+         */
+        public string|int $state,
+        array $options
+    ) {
         $this->options = $options;
-
         $this->lastOrdinalToken = $this->lastProcessedToken = $this->buffer->current();
     }
 
@@ -127,7 +106,7 @@ class Context implements ContextInterface
         return $this->lastProcessedToken;
     }
 
-    public function getState()
+    public function getState(): int|string
     {
         return $this->state;
     }
