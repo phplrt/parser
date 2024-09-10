@@ -129,8 +129,10 @@ class Builder implements \IteratorAggregate
      *
      * @return array-key
      */
-    public function add(RuleInterface $rule, string|int|null $id = null): int|string
+    public function add(RuleInterface $rule, mixed $id = null): mixed
     {
+        \assert($id === null || \is_int($id) || \is_string($id));
+
         if ($id === null) {
             $this->grammar[] = $rule;
 

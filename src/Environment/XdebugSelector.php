@@ -23,23 +23,36 @@ final class XdebugSelector implements SelectorInterface
      * This value must first be set from the global environment
      * (PHP configuration) for its subsequent restoration after
      * the end of the parser.
+     *
+     * @readonly
      */
-    private readonly int $actualRecursionDepth;
+    private int $actualRecursionDepth;
 
     /**
      * The value contains {@see true} if the Xdebug extension
      * is available in the environment and controls the nesting
      * of the recursion depth.
+     *
+     * @readonly
      */
-    private readonly bool $enabled;
+    private bool $enabled;
+
+    /**
+     * @var int<0, max>
+     *
+     * @readonly
+     */
+    private int $expectedRecursionDepth;
 
     /**
      * @param int<0, max> $expectedRecursionDepth
      */
     public function __construct(
-        private readonly int $expectedRecursionDepth = self::DEFAULT_EXPECTED_RECURSION_DEPTH,
+        int $expectedRecursionDepth = self::DEFAULT_EXPECTED_RECURSION_DEPTH
     ) {
         $this->enabled = \extension_loaded('xdebug');
+
+        $this->expectedRecursionDepth = $expectedRecursionDepth;
         $this->actualRecursionDepth = (int) \ini_get('xdebug.max_nesting_level');
     }
 

@@ -71,35 +71,54 @@ final class Parser implements ConfigurableParserInterface, ParserConfigsInterfac
     private const ERROR_BUFFER_TYPE = 'Buffer class should implement %s interface';
 
     /**
+     * The lexer instance.
+     *
+     * @psalm-readonly-allow-private-mutation
+     */
+    private LexerInterface $lexer;
+
+    /**
      * The {@see SelectorInterface} is responsible for preparing
      * and analyzing the PHP environment for the parser to work.
+     *
+     * @psalm-readonly-allow-private-mutation
      */
-    private readonly SelectorInterface $env;
+    private SelectorInterface $env;
 
     /**
      * The {@see BuilderInterface} is responsible for building the Abstract
      * Syntax Tree.
+     *
+     * @psalm-readonly-allow-private-mutation
      */
-    private readonly BuilderInterface $builder;
+    private BuilderInterface $builder;
 
     /**
      * Sources factory.
+     *
+     * @psalm-readonly-allow-private-mutation
      */
-    private readonly SourceFactoryInterface $sources;
+    private SourceFactoryInterface $sources;
 
     /**
      * The initial state (initial rule identifier) of the parser.
      *
      * @var array-key
+     *
+     * @psalm-readonly-allow-private-mutation
      */
-    private readonly string|int $initial;
+    private $initial;
 
     /**
      * Array of transition rules for the parser.
      *
      * @var array<array-key, RuleInterface>
+     *
+     * @readonly
+     *
+     * @psalm-readonly-allow-private-mutation
      */
-    private readonly array $rules;
+    private array $rules = [];
 
     private ?Context $context = null;
 
@@ -109,14 +128,12 @@ final class Parser implements ConfigurableParserInterface, ParserConfigsInterfac
      * @param array<ParserConfigsInterface::CONFIG_*, mixed> $options
      */
     public function __construct(
-        /**
-         * The lexer instance.
-         */
-        private readonly LexerInterface $lexer,
+        LexerInterface $lexer,
         iterable $grammar = [],
         array $options = [],
         ?SourceFactoryInterface $sources = null
     ) {
+        $this->lexer = $lexer;
         $this->env = new EnvironmentFactory();
 
         $this->rules = self::bootGrammar($grammar);
@@ -173,7 +190,7 @@ final class Parser implements ConfigurableParserInterface, ParserConfigsInterfac
      *
      * @return array-key
      */
-    private static function bootInitialRule(array $options, array $grammar): int|string
+    private static function bootInitialRule(array $options, array $grammar)
     {
         $initial = $options[self::CONFIG_INITIAL_RULE] ?? null;
 
@@ -191,6 +208,40 @@ final class Parser implements ConfigurableParserInterface, ParserConfigsInterfac
     }
 
     /**
+     * Sets an initial state (initial rule identifier) of the parser.
+     *
+     * @param array-key $initial
+     *
+     * @deprecated since phplrt 3.4 and will be removed in 4.0
+     */
+    public function startsAt($initial): self
+    {
+        trigger_deprecation('phplrt/parser', '3.4', <<<'MSG'
+            Using "%s::startsAt(array-key)" is deprecated, please use "%1$s::__construct()" instead.
+            MSG, self::class);
+
+        $this->initial = $initial;
+
+        return $this;
+    }
+
+    /**
+     * Sets an abstract syntax tree builder.
+     *
+     * @deprecated since phplrt 3.4 and will be removed in 4.0
+     */
+    public function buildUsing(BuilderInterface $builder): self
+    {
+        trigger_deprecation('phplrt/parser', '3.4', <<<'MSG'
+            Using "%s::buildUsing(BuilderInterface)" is deprecated, please use "%1$s::__construct()" instead.
+            MSG, self::class);
+
+        $this->builder = $builder;
+
+        return $this;
+    }
+
+    /**
      * Parses sources into an abstract source tree (AST) or list of AST nodes.
      *
      * @param mixed $source any source supported by the {@see SourceFactoryInterface::create()}
@@ -205,7 +256,7 @@ final class Parser implements ConfigurableParserInterface, ParserConfigsInterfac
      *         starting the parsing and indicates problems in the analyzed
      *         source
      */
-    public function parse(mixed $source, array $options = []): iterable
+    public function parse($source, array $options = []): iterable
     {
         if ($this->rules === []) {
             return [];

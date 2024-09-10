@@ -17,12 +17,13 @@
     ],
     "require": {
         "php": "^8.1",
-        "phplrt/source": "^4.0",
-        "phplrt/buffer": "^4.0",
-        "phplrt/exception": "^4.0",
-        "phplrt/parser-contracts": "^4.0",
-        "phplrt/lexer-contracts": "^4.0",
-        "phplrt/ast-contracts": "^4.0"
+        "phplrt/source": "^3.7",
+        "phplrt/buffer": "^3.7",
+        "phplrt/exception": "^3.7",
+        "phplrt/parser-contracts": "^3.7",
+        "phplrt/lexer-contracts": "^3.7",
+        "phplrt/ast-contracts": "^3.7",
+        "symfony/deprecation-contracts": "^2.5|^3.0"
     },
     "replace": {
         "phplrt/grammar": "<=3.1",
@@ -31,11 +32,14 @@
     "autoload": {
         "psr-4": {
             "Phplrt\\Parser\\": "src"
-        }
+        },
+        "files": [
+            "src/polyfill.php"
+        ]
     },
     "require-dev": {
-        "phplrt/visitor": "^4.0",
-        "phplrt/lexer": "^4.0",
+        "phplrt/visitor": "^3.7",
+        "phplrt/lexer": "^3.7",
         "phpunit/phpunit": "^10.5|^11.0",
         "phpstan/extension-installer": "^1.4",
         "phpstan/phpstan": "^1.11",
@@ -48,12 +52,12 @@
         }
     },
     "provide": {
-        "phplrt/parser-contracts-implementation": "^4.0"
+        "phplrt/parser-contracts-implementation": "^3.7"
     },
     "extra": {
         "branch-alias": {
-            "dev-master": "4.x-dev",
-            "dev-main": "4.x-dev"
+            "dev-master": "3.x-dev",
+            "dev-main": "3.x-dev"
         }
     },
     "config": {

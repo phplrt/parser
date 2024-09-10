@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Phplrt\Parser\Tests\Functional;
 
+use Phplrt\Contracts\Exception\RuntimeExceptionInterface;
 use Phplrt\Lexer\Lexer;
 use Phplrt\Lexer\Token\Token;
 use Phplrt\Parser\BuilderInterface;
@@ -13,10 +14,11 @@ use Phplrt\Parser\Grammar\Lexeme;
 use Phplrt\Parser\Grammar\Repetition;
 use Phplrt\Parser\Parser;
 use Phplrt\Parser\Tests\Functional\Stub\AstNode;
+use PHPUnit\Framework\ExpectationFailedException;
 
 class SimpleSumParserTest extends TestCase implements BuilderInterface
 {
-    public function build(Context $context, mixed $result): mixed
+    public function build(Context $context, $result)
     {
         if (\is_int($context->getState())) {
             return $result;
