@@ -11,22 +11,12 @@ use Phplrt\Buffer\BufferInterface;
  */
 class Alternation extends Production
 {
-    /**
-     * @var list<array-key>
-     *
-     * @readonly
-     *
-     * @psalm-readonly-allow-private-mutation
-     */
-    public array $sequence = [];
-
-    /**
-     * @param list<array-key> $sequence
-     */
-    public function __construct(array $sequence)
-    {
-        $this->sequence = $sequence;
-    }
+    public function __construct(
+        /**
+         * @var list<array-key>
+         */
+        public readonly array $sequence,
+    ) {}
 
     public function getTerminals(array $rules): iterable
     {
@@ -41,7 +31,7 @@ class Alternation extends Production
         return $result;
     }
 
-    public function reduce(BufferInterface $buffer, \Closure $reduce)
+    public function reduce(BufferInterface $buffer, \Closure $reduce): mixed
     {
         $rollback = $buffer->key();
 

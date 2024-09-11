@@ -71,23 +71,16 @@ final class Parser implements ConfigurableParserInterface, ParserConfigsInterfac
     private const ERROR_BUFFER_TYPE = 'Buffer class should implement %s interface';
 
     /**
-     * The lexer instance.
-     *
-     * @psalm-readonly-allow-private-mutation
-     */
-    private LexerInterface $lexer;
-
-    /**
      * The {@see SelectorInterface} is responsible for preparing
      * and analyzing the PHP environment for the parser to work.
-     *
-     * @psalm-readonly-allow-private-mutation
      */
-    private SelectorInterface $env;
+    private readonly SelectorInterface $env;
 
     /**
      * The {@see BuilderInterface} is responsible for building the Abstract
      * Syntax Tree.
+     *
+     * @readonly will contain the PHP readonly attribute starting with phplrt 4.0.
      *
      * @psalm-readonly-allow-private-mutation
      */
@@ -95,30 +88,22 @@ final class Parser implements ConfigurableParserInterface, ParserConfigsInterfac
 
     /**
      * Sources factory.
-     *
-     * @psalm-readonly-allow-private-mutation
      */
-    private SourceFactoryInterface $sources;
+    private readonly SourceFactoryInterface $sources;
 
     /**
      * The initial state (initial rule identifier) of the parser.
      *
      * @var array-key
-     *
-     * @psalm-readonly-allow-private-mutation
      */
-    private $initial;
+    private string|int $initial;
 
     /**
      * Array of transition rules for the parser.
      *
      * @var array<array-key, RuleInterface>
-     *
-     * @readonly
-     *
-     * @psalm-readonly-allow-private-mutation
      */
-    private array $rules = [];
+    private readonly array $rules;
 
     private ?Context $context = null;
 
@@ -128,12 +113,14 @@ final class Parser implements ConfigurableParserInterface, ParserConfigsInterfac
      * @param array<ParserConfigsInterface::CONFIG_*, mixed> $options
      */
     public function __construct(
-        LexerInterface $lexer,
+        /**
+         * The lexer instance.
+         */
+        private readonly LexerInterface $lexer,
         iterable $grammar = [],
         array $options = [],
-        ?SourceFactoryInterface $sources = null
+        ?SourceFactoryInterface $sources = null,
     ) {
-        $this->lexer = $lexer;
         $this->env = new EnvironmentFactory();
 
         $this->rules = self::bootGrammar($grammar);
@@ -190,7 +177,7 @@ final class Parser implements ConfigurableParserInterface, ParserConfigsInterfac
      *
      * @return array-key
      */
-    private static function bootInitialRule(array $options, array $grammar)
+    private static function bootInitialRule(array $options, array $grammar): int|string
     {
         $initial = $options[self::CONFIG_INITIAL_RULE] ?? null;
 
@@ -214,7 +201,7 @@ final class Parser implements ConfigurableParserInterface, ParserConfigsInterfac
      *
      * @deprecated since phplrt 3.4 and will be removed in 4.0
      */
-    public function startsAt($initial): self
+    public function startsAt(string|int $initial): self
     {
         trigger_deprecation('phplrt/parser', '3.4', <<<'MSG'
             Using "%s::startsAt(array-key)" is deprecated, please use "%1$s::__construct()" instead.
@@ -256,7 +243,7 @@ final class Parser implements ConfigurableParserInterface, ParserConfigsInterfac
      *         starting the parsing and indicates problems in the analyzed
      *         source
      */
-    public function parse($source, array $options = []): iterable
+    public function parse(mixed $source, array $options = []): iterable
     {
         if ($this->rules === []) {
             return [];
@@ -360,25 +347,23 @@ final class Parser implements ConfigurableParserInterface, ParserConfigsInterfac
         return \array_values($tokens);
     }
 
-    private function next(Context $context)
+    private function next(Context $context): mixed
     {
         if ($this->step !== null) {
-            return ($this->step)($context, function () use ($context) {
-                return $this->runNextStep($context);
-            });
+            return ($this->step)($context, fn($context): mixed => $this->runNextStep($context));
         }
 
         return $this->runNextStep($context);
     }
 
-    private function runNextStep(Context $context)
+    private function runNextStep(Context $context): mixed
     {
         $rule = $context->rule = $this->rules[$context->state];
         $result = null;
 
         switch (true) {
             case $rule instanceof ProductionInterface:
-                $result = $rule->reduce($context->buffer, function ($state) use ($context) {
+                $result = $rule->reduce($context->buffer, function (int|string $state) use ($context) {
                     // Keep current state
                     $beforeState = $context->state;
                     $beforeLastProcessedToken = $context->lastProcessedToken;
@@ -445,7 +430,7 @@ final class Parser implements ConfigurableParserInterface, ParserConfigsInterfac
      *
      * Typically used in conjunction with the "tolerant" mode of the parser.
      *
-     * ```php
+     * ```
      *  $parser = new Parser(..., [Parser::CONFIG_ALLOW_TRAILING_TOKENS => true]);
      *  $parser->parse('...');
      *
