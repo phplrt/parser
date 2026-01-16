@@ -11,6 +11,7 @@ use Phplrt\Contracts\Source\ReadableInterface;
 
 /**
  * @template TNode of object
+ *
  * @template-extends ParserInterface<TNode>
  */
 interface ConfigurableParserInterface extends ParserInterface

@@ -6,7 +6,6 @@ namespace Phplrt\Parser\Context;
 
 /**
  * @psalm-require-implements ContextOptionsProviderInterface
- *
  * @mixin ContextOptionsProviderInterface
  */
 trait ContextOptionsTrait

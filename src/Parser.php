@@ -59,6 +59,7 @@ use Phplrt\Source\SourceFactory;
  * </code>
  *
  * @template TNode of object
+ *
  * @template-implements ConfigurableParserInterface<TNode>
  */
 final class Parser implements ConfigurableParserInterface, ParserConfigsInterface
