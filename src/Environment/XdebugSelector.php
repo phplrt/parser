@@ -33,11 +33,11 @@ final class XdebugSelector implements SelectorInterface
      */
     private readonly bool $enabled;
 
-    /**
-     * @param int<0, max> $expectedRecursionDepth
-     */
     public function __construct(
-        private readonly int $expectedRecursionDepth = self::DEFAULT_EXPECTED_RECURSION_DEPTH,
+        /**
+         * @var int<0, max>
+         */
+        private readonly int $expectedRecursionDepth = self::DEFAULT_EXPECTED_RECURSION_DEPTH
     ) {
         $this->enabled = \extension_loaded('xdebug');
         $this->actualRecursionDepth = (int) \ini_get('xdebug.max_nesting_level');

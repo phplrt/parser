@@ -11,10 +11,10 @@ use Phplrt\Buffer\BufferInterface;
  */
 class Concatenation extends Production
 {
-    /**
-     * @param list<array-key> $sequence
-     */
     public function __construct(
+        /**
+         * @var list<array-key>
+         */
         public readonly array $sequence,
     ) {}
 

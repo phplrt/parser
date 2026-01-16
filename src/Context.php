@@ -17,8 +17,13 @@ use Phplrt\Parser\Grammar\RuleInterface;
  * The presence of public modifiers in fields is required only to speed up the
  * parser, since direct access is several times faster than using methods of
  * setting values or creating a new class at each step of the parser.
+ *
+ * @property-read ReadableInterface $source
+ * @property-read BufferInterface $buffer
+ *
+ * @final marked as final since phplrt 3.4 and will be final since 4.0
  */
-final class Context
+class Context implements ContextInterface
 {
     use ContextOptionsTrait;
 
@@ -55,7 +60,6 @@ final class Context
     public ?RuleInterface $rule = null;
 
     /**
-     * @param array-key $state
      * @param array<non-empty-string, mixed> $options
      */
     public function __construct(
@@ -73,9 +77,11 @@ final class Context
          * Note: This is a stateful data and may cause a race condition error. In
          * the future, it is necessary to delete this data with a replacement for
          * the stateless structure.
+         *
+         * @var array-key
          */
-        public string|int $state,
-        array $options
+        public int|string $state,
+        array $options,
     ) {
         $this->options = $options;
         $this->lastOrdinalToken = $this->lastProcessedToken = $this->buffer->current();

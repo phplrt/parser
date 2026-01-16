@@ -12,28 +12,27 @@ use Phplrt\Buffer\BufferInterface;
 class Repetition extends Production
 {
     /**
-     * @var int<0, max>
-     */
-    public readonly int $gte;
-
-    /**
      * @var int<0, max>|float
      */
     public readonly int|float $lte;
 
     /**
-     * @param array-key $rule
      * @param int<0, max> $gte
      * @param int<0, max>|float $lte
      */
     public function __construct(
-        public readonly string|int $rule,
-        int $gte = 0,
-        int|float $lte = \INF
+        /**
+         * @var array-key
+         */
+        public readonly int|string $rule,
+        /**
+         * @var int<0, max>
+         */
+        public readonly int $gte = 0,
+        int|float $lte = \INF,
     ) {
         \assert($lte >= $gte, 'Min repetitions count must be greater or equal than max repetitions');
 
-        $this->gte = $gte;
         $this->lte = \is_infinite($lte) ? \INF : (int) $lte;
     }
 
