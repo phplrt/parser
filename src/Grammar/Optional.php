@@ -11,11 +11,14 @@ use Phplrt\Buffer\BufferInterface;
  */
 class Optional extends Production
 {
+    /**
+     * @param array-key $rule
+     */
     public function __construct(
         /**
-         * @var array-key
+         * @psalm-readonly-allow-private-mutation
          */
-        public readonly string|int $rule,
+        public readonly string|int $rule
     ) {}
 
     public function getTerminals(array $rules): iterable
@@ -27,7 +30,7 @@ class Optional extends Production
         return $rules[$this->rule]->getTerminals($rules);
     }
 
-    public function reduce(BufferInterface $buffer, \Closure $reduce): mixed
+    public function reduce(BufferInterface $buffer, \Closure $reduce)
     {
         $rollback = $buffer->key();
 

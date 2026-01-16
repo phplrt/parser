@@ -11,10 +11,10 @@ use Phplrt\Buffer\BufferInterface;
  */
 class Alternation extends Production
 {
+    /**
+     * @param list<array-key> $sequence
+     */
     public function __construct(
-        /**
-         * @var list<array-key>
-         */
         public readonly array $sequence,
     ) {}
 
@@ -31,7 +31,7 @@ class Alternation extends Production
         return $result;
     }
 
-    public function reduce(BufferInterface $buffer, \Closure $reduce): mixed
+    public function reduce(BufferInterface $buffer, \Closure $reduce)
     {
         $rollback = $buffer->key();
 

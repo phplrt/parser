@@ -79,12 +79,8 @@ final class Parser implements ConfigurableParserInterface, ParserConfigsInterfac
     /**
      * The {@see BuilderInterface} is responsible for building the Abstract
      * Syntax Tree.
-     *
-     * @readonly will contain the PHP readonly attribute starting with phplrt 4.0.
-     *
-     * @psalm-readonly-allow-private-mutation
      */
-    private BuilderInterface $builder;
+    private readonly BuilderInterface $builder;
 
     /**
      * Sources factory.
@@ -96,7 +92,7 @@ final class Parser implements ConfigurableParserInterface, ParserConfigsInterfac
      *
      * @var array-key
      */
-    private string|int $initial;
+    private readonly string|int $initial;
 
     /**
      * Array of transition rules for the parser.
@@ -119,7 +115,7 @@ final class Parser implements ConfigurableParserInterface, ParserConfigsInterfac
         private readonly LexerInterface $lexer,
         iterable $grammar = [],
         array $options = [],
-        ?SourceFactoryInterface $sources = null,
+        ?SourceFactoryInterface $sources = null
     ) {
         $this->env = new EnvironmentFactory();
 
@@ -192,40 +188,6 @@ final class Parser implements ConfigurableParserInterface, ParserConfigsInterfac
         }
 
         return $result;
-    }
-
-    /**
-     * Sets an initial state (initial rule identifier) of the parser.
-     *
-     * @param array-key $initial
-     *
-     * @deprecated since phplrt 3.4 and will be removed in 4.0
-     */
-    public function startsAt(string|int $initial): self
-    {
-        trigger_deprecation('phplrt/parser', '3.4', <<<'MSG'
-            Using "%s::startsAt(array-key)" is deprecated, please use "%1$s::__construct()" instead.
-            MSG, self::class);
-
-        $this->initial = $initial;
-
-        return $this;
-    }
-
-    /**
-     * Sets an abstract syntax tree builder.
-     *
-     * @deprecated since phplrt 3.4 and will be removed in 4.0
-     */
-    public function buildUsing(BuilderInterface $builder): self
-    {
-        trigger_deprecation('phplrt/parser', '3.4', <<<'MSG'
-            Using "%s::buildUsing(BuilderInterface)" is deprecated, please use "%1$s::__construct()" instead.
-            MSG, self::class);
-
-        $this->builder = $builder;
-
-        return $this;
     }
 
     /**
@@ -347,23 +309,25 @@ final class Parser implements ConfigurableParserInterface, ParserConfigsInterfac
         return \array_values($tokens);
     }
 
-    private function next(Context $context): mixed
+    private function next(Context $context)
     {
         if ($this->step !== null) {
-            return ($this->step)($context, fn($context): mixed => $this->runNextStep($context));
+            return ($this->step)($context, function () use ($context) {
+                return $this->runNextStep($context);
+            });
         }
 
         return $this->runNextStep($context);
     }
 
-    private function runNextStep(Context $context): mixed
+    private function runNextStep(Context $context)
     {
         $rule = $context->rule = $this->rules[$context->state];
         $result = null;
 
         switch (true) {
             case $rule instanceof ProductionInterface:
-                $result = $rule->reduce($context->buffer, function (int|string $state) use ($context) {
+                $result = $rule->reduce($context->buffer, function ($state) use ($context) {
                     // Keep current state
                     $beforeState = $context->state;
                     $beforeLastProcessedToken = $context->lastProcessedToken;
@@ -430,7 +394,7 @@ final class Parser implements ConfigurableParserInterface, ParserConfigsInterfac
      *
      * Typically used in conjunction with the "tolerant" mode of the parser.
      *
-     * ```
+     * ```php
      *  $parser = new Parser(..., [Parser::CONFIG_ALLOW_TRAILING_TOKENS => true]);
      *  $parser->parse('...');
      *

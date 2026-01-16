@@ -17,7 +17,7 @@ abstract class TestCase extends BaseTestCase
         $result = [];
 
         Traverser::through(new class ($result) extends Visitor {
-            private array $result;
+            private $result;
 
             public function __construct(array &$result)
             {
@@ -26,8 +26,9 @@ abstract class TestCase extends BaseTestCase
 
             /**
              * @param NodeInterface|AstNode $node
+             * @return mixed|void|null
              */
-            public function enter(NodeInterface $node): void
+            public function enter(NodeInterface $node)
             {
                 $this->result[] = [$node->name, \iterator_count($node->getIterator())];
             }
