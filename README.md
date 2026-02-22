@@ -4,7 +4,7 @@
 
 ## Parser
 
-This is a subtree split of the phplrt parser component. 
+This is a subtree split of the phplrt parser component.
 
 ### Resources
 
