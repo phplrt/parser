@@ -4,34 +4,87 @@ declare(strict_types=1);
 
 namespace Phplrt\Parser;
 
+use Phplrt\Contracts\Lexer\Channel;
 use Phplrt\Contracts\Lexer\LexerInterface;
+use Phplrt\Contracts\Lexer\TokenInterface;
 use Phplrt\Contracts\Parser\ParserInterface;
-use Phplrt\Contracts\Source\Factory\SourceFactoryInterface;
-use Phplrt\Contracts\Source\ReadableInterface;
-use Phplrt\Parser\Buffer\ArrayBuffer;
+use Phplrt\Parser\Exception\UnexpectedTokenException;
 use Phplrt\Parser\Grammar\RuleInterface;
-use Phplrt\Source\SourceFactory;
+use Phplrt\Parser\Internal\Buffer\ArrayBuffer;
+use Phplrt\Parser\Internal\Buffer\BufferInterface;
+use Phplrt\Parser\Internal\Filter\ChannelFilter;
+use Phplrt\Parser\Internal\Filter\FilterInterface;
+use Phplrt\Parser\Internal\RecursiveDescentTracer;
+use Phplrt\Parser\Internal\Tracing\Result\Failure;
+use Phplrt\Parser\Internal\Tracing\Result\Success;
 
 final readonly class Parser implements ParserInterface
 {
-    private SourceFactoryInterface $sources;
-
     public function __construct(
         private LexerInterface $lexer,
-        /** @var array<int, RuleInterface> */
+        /**
+         * @var list<RuleInterface>
+         */
         private array $grammar,
+        /**
+         * The identifier of the rule the analysis starts at.
+         *
+         * @var int<0, max>
+         */
         private int $initial,
-        ?SourceFactoryInterface $sources = null,
-    ) {
-        $this->sources = $sources ?? SourceFactory::default();
+        /**
+         * Selects which tokens are passed to the grammar.
+         */
+        private FilterInterface $filter = new ChannelFilter(),
+    ) {}
+
+    /**
+     * Checks whether the source is syntactically valid against the grammar.
+     */
+    public function check(string $source): bool
+    {
+        $buffer = $this->lex($source);
+
+        $result = RecursiveDescentTracer::trace($this->grammar, $this->initial, $buffer);
+
+        return $result instanceof Success
+            && $this->isEndOfInput($buffer->current);
     }
 
-    public function parse(ReadableInterface $source): iterable
+    /**
+     * Parses the source into an AST.
+     *
+     * @return object
+     * @throws UnexpectedTokenException on a syntax error
+     */
+    public function parse(string $source): mixed
     {
-        $readable = $this->sources->create($source);
+        $buffer = $this->lex($source);
 
-        $buffer = new ArrayBuffer($this->filter($this->lexer->lex($readable)));
+        $result = RecursiveDescentTracer::trace($this->grammar, $this->initial, $buffer);
 
-        return [];
+        if ($result instanceof Failure) {
+            throw UnexpectedTokenException::fromToken($result->token ?? $buffer->current);
+        }
+
+        if (!$this->isEndOfInput($buffer->current)) {
+            throw UnexpectedTokenException::fromToken($buffer->current);
+        }
+
+        return $result;
+    }
+
+    private function lex(string $source): BufferInterface
+    {
+        $stream = $this->lexer->lex($source);
+
+        $filtered = $this->filter->apply($stream);
+
+        return new ArrayBuffer($filtered);
+    }
+
+    private function isEndOfInput(TokenInterface $token): bool
+    {
+        return $token->channel === Channel::EndOfInput;
     }
 }

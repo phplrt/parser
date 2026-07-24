@@ -2,23 +2,39 @@
 
 declare(strict_types=1);
 
-namespace Phplrt\Parser\Buffer;
+namespace Phplrt\Parser\Internal\Buffer;
 
 use Phplrt\Contracts\Lexer\TokenInterface;
 
 /**
- * @template-extends \SeekableIterator<int<0, max>, TokenInterface>
+ * @template-covariant TToken of TokenInterface = TokenInterface
+ *
+ * @template-extends \SeekableIterator<int<0, max>, TToken>
  */
 interface BufferInterface extends \SeekableIterator
 {
+    /**
+     * The token at the current position.
+     */
+    public TokenInterface $current {
+        get;
+    }
+
+    /**
+     * The position of the current token.
+     *
+     * @var int<0, max>
+     */
+    public int $key {
+        get;
+    }
+
     /**
      * Rewind the BufferInterface to the target token element.
      *
      * @link https://php.net/manual/en/seekableiterator.seek.php
      *
      * @see \SeekableIterator::seek()
-     *
-     * @param int<0, max> $offset
      */
     public function seek(int $offset): void;
 
@@ -28,6 +44,8 @@ interface BufferInterface extends \SeekableIterator
      * @link https://php.net/manual/en/iterator.current.php
      *
      * @see \Iterator::current()
+     *
+     * @return TokenInterface
      */
     public function current(): TokenInterface;
 
