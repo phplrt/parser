@@ -23,6 +23,9 @@
         "phplrt/lexer": "^4.0",
         "phplrt/parser-contracts": "^4.0"
     },
+    "suggest": {
+        "phplrt/exception": "Renders the syntax errors along with the fragment of the source code they occurred in"
+    },
     "autoload": {
         "psr-4": {
             "Phplrt\\Parser\\": "src"

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Phplrt\Parser\Internal;
 
+use Phplrt\Contracts\Lexer\Channel;
 use Phplrt\Parser\Grammar\Alternation;
 use Phplrt\Parser\Grammar\Concatenation;
 use Phplrt\Parser\Grammar\Lexeme;
@@ -54,11 +55,19 @@ final readonly class RecursiveDescentTracer
 
         $self = new self($grammar, $buffer);
 
-        if ($self->match($initial)) {
+        if ($self->match($initial) && $self->isEndOfInput()) {
             return $self->trace->finish();
         }
 
         return $self->error->finish();
+    }
+
+    /**
+     * The whole input is recognized only in case it is completely consumed.
+     */
+    private function isEndOfInput(): bool
+    {
+        return $this->buffer->current->channel === Channel::EndOfInput;
     }
 
     private function match(int $rule): bool
@@ -66,7 +75,7 @@ final readonly class RecursiveDescentTracer
         $definition = $this->grammar[$rule];
 
         if ($definition instanceof Lexeme) {
-            return $this->matchLexeme($definition);
+            return $this->matchLexeme($rule, $definition);
         }
 
         $trace = $this->trace;
@@ -93,15 +102,20 @@ final readonly class RecursiveDescentTracer
         return $matched;
     }
 
-    private function matchLexeme(Lexeme $rule): bool
+    private function matchLexeme(int $rule, Lexeme $definition): bool
     {
         $buffer = $this->buffer;
         $token = $buffer->current;
-        $id = $rule->tokenId;
+        $id = $definition->tokenId;
 
         if ($token->id === $id) {
-            if ($rule->keep) {
-                $this->trace->token($token);
+            if ($definition->keep) {
+                // The terminal is recorded as an ordinary rule containing a
+                // single token, so it can be reduced in the same way
+                $trace = $this->trace;
+                $trace->enter($rule);
+                $trace->token($token);
+                $trace->leave($rule);
             }
 
             $buffer->next();

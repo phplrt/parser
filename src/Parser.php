@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Phplrt\Parser;
 
-use Phplrt\Contracts\Lexer\Channel;
 use Phplrt\Contracts\Lexer\LexerInterface;
-use Phplrt\Contracts\Lexer\TokenInterface;
 use Phplrt\Contracts\Parser\ParserInterface;
 use Phplrt\Parser\Exception\UnexpectedTokenException;
 use Phplrt\Parser\Grammar\RuleInterface;
@@ -15,11 +13,17 @@ use Phplrt\Parser\Internal\Buffer\BufferInterface;
 use Phplrt\Parser\Internal\Filter\ChannelFilter;
 use Phplrt\Parser\Internal\Filter\FilterInterface;
 use Phplrt\Parser\Internal\RecursiveDescentTracer;
+use Phplrt\Parser\Internal\TraceReducer;
 use Phplrt\Parser\Internal\Tracing\Result\Failure;
 use Phplrt\Parser\Internal\Tracing\Result\Success;
 
+/**
+ * @phpstan-import-type ReducerType from TraceReducer
+ */
 final readonly class Parser implements ParserInterface
 {
+    private TraceReducer $reducer;
+
     public function __construct(
         private LexerInterface $lexer,
         /**
@@ -33,10 +37,16 @@ final readonly class Parser implements ParserInterface
          */
         private int $initial,
         /**
+         * @var array<int<0, max>, ReducerType>
+         */
+        private array $reducers = [],
+        /**
          * Selects which tokens are passed to the grammar.
          */
         private FilterInterface $filter = new ChannelFilter(),
-    ) {}
+    ) {
+        $this->reducer = new TraceReducer($this->grammar, $this->reducers);
+    }
 
     /**
      * Checks whether the source is syntactically valid against the grammar.
@@ -45,16 +55,13 @@ final readonly class Parser implements ParserInterface
     {
         $buffer = $this->lex($source);
 
-        $result = RecursiveDescentTracer::trace($this->grammar, $this->initial, $buffer);
-
-        return $result instanceof Success
-            && $this->isEndOfInput($buffer->current);
+        return RecursiveDescentTracer::trace($this->grammar, $this->initial, $buffer)
+            instanceof Success;
     }
 
     /**
      * Parses the source into an AST.
      *
-     * @return object
      * @throws UnexpectedTokenException on a syntax error
      */
     public function parse(string $source): mixed
@@ -64,14 +71,10 @@ final readonly class Parser implements ParserInterface
         $result = RecursiveDescentTracer::trace($this->grammar, $this->initial, $buffer);
 
         if ($result instanceof Failure) {
-            throw UnexpectedTokenException::fromToken($result->token ?? $buffer->current);
+            throw UnexpectedTokenException::fromToken($result->token ?? $buffer->current, $source);
         }
 
-        if (!$this->isEndOfInput($buffer->current)) {
-            throw UnexpectedTokenException::fromToken($buffer->current);
-        }
-
-        return $result;
+        return $this->reducer->reduce($result, $source);
     }
 
     private function lex(string $source): BufferInterface
@@ -81,10 +84,5 @@ final readonly class Parser implements ParserInterface
         $filtered = $this->filter->apply($stream);
 
         return new ArrayBuffer($filtered);
-    }
-
-    private function isEndOfInput(TokenInterface $token): bool
-    {
-        return $token->channel === Channel::EndOfInput;
     }
 }
