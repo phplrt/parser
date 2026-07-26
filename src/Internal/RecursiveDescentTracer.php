@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Phplrt\Parser\Internal;
 
 use Phplrt\Contracts\Lexer\Channel;
+use Phplrt\Contracts\Lexer\TokenInterface;
 use Phplrt\Parser\Grammar\Alternation;
 use Phplrt\Parser\Grammar\Concatenation;
 use Phplrt\Parser\Grammar\Lexeme;
@@ -12,10 +13,10 @@ use Phplrt\Parser\Grammar\Optional;
 use Phplrt\Parser\Grammar\Repetition;
 use Phplrt\Parser\Grammar\RuleInterface;
 use Phplrt\Parser\Internal\Buffer\BufferInterface;
+use Phplrt\Parser\Internal\ParseTree\Lookahead;
 use Phplrt\Parser\Internal\Tracing\ErrorReport;
 use Phplrt\Parser\Internal\Tracing\Result\Failure;
 use Phplrt\Parser\Internal\Tracing\Result\Success;
-use Phplrt\Parser\Internal\Tracing\Trace;
 
 /**
  * Recognizes an input against a PEG grammar.
@@ -23,21 +24,45 @@ use Phplrt\Parser\Internal\Tracing\Trace;
  * @internal this is an internal library class, please do not use it in your code
  * @psalm-internal Phplrt\Parser
  */
-final readonly class RecursiveDescentTracer
+final class RecursiveDescentTracer
 {
-    private Trace $trace;
+    /**
+     * @var array<int<0, max>, int|TokenInterface>
+     */
+    private array $entries = [];
 
-    private ErrorReport $error;
+    /**
+     * @var int<0, max>
+     */
+    private int $length = 0;
+
+    private readonly ErrorReport $error;
+
+    /**
+     * @var array<int, array<int, true>>
+     */
+    private readonly array $first;
+
+    /**
+     * @var array<int, bool>
+     */
+    private readonly array $nullable;
 
     private function __construct(
         /**
          * @var list<RuleInterface>
          */
-        private array $grammar,
-        private BufferInterface $buffer,
+        private readonly array $grammar,
+        private readonly BufferInterface $buffer,
+        Lookahead $lookahead,
+        /**
+         * @var array<int, bool>
+         */
+        private readonly array $kept,
     ) {
-        $this->trace = new Trace();
         $this->error = new ErrorReport($buffer);
+        $this->first = $lookahead->first;
+        $this->nullable = $lookahead->nullable;
     }
 
     /**
@@ -45,18 +70,27 @@ final readonly class RecursiveDescentTracer
      *
      * @param list<RuleInterface> $grammar
      * @param int<0, max> $initial
+     * @param array<int, bool> $kept
      */
-    public static function trace(array $grammar, int $initial, BufferInterface $buffer): Success|Failure
-    {
+    public static function trace(
+        array $grammar,
+        int $initial,
+        BufferInterface $buffer,
+        Lookahead $lookahead,
+        array $kept,
+    ): Success|Failure {
         if ($grammar === []) {
             // Fast-finish on empty grammar
             return new Failure($buffer->current);
         }
 
-        $self = new self($grammar, $buffer);
+        $self = new self($grammar, $buffer, $lookahead, $kept);
 
         if ($self->match($initial) && $self->isEndOfInput()) {
-            return $self->trace->finish();
+            return new Success(
+                entries: $self->entries,
+                length: $self->length,
+            );
         }
 
         return $self->error->finish();
@@ -75,12 +109,56 @@ final readonly class RecursiveDescentTracer
         $definition = $this->grammar[$rule];
 
         if ($definition instanceof Lexeme) {
-            return $this->matchLexeme($rule, $definition);
+            $buffer = $this->buffer;
+            $token = $buffer->current;
+            $id = $definition->tokenId;
+
+            if ($token->id !== $id) {
+                $error = $this->error;
+
+                // A failure behind the reported one changes nothing
+                if ($buffer->key >= $error->furthest) {
+                    $error->record($id);
+                }
+
+                return false;
+            }
+
+            if ($definition->keep) {
+                $length = $this->length;
+
+                if ($this->kept[$rule]) {
+                    // The terminal is recorded as an ordinary rule containing a
+                    // single token, so it can be reduced in the same way
+                    $this->entries[$length] = $rule;
+                    $this->entries[$length + 1] = $token;
+                    $this->entries[$length + 2] = -$rule - 1;
+
+                    $this->length = $length + 3;
+                } else {
+                    $this->entries[$length] = $token;
+                    $this->length = $length + 1;
+                }
+            }
+
+            $buffer->next();
+
+            return true;
         }
 
-        $trace = $this->trace;
-        $mark = $trace->mark();
-        $trace->enter($rule);
+        // The rule requires a token it cannot start with, so there is nothing
+        // to recognize
+        if (!isset($this->first[$rule][$this->buffer->current->id]) && !$this->nullable[$rule]) {
+            return false;
+        }
+
+        $mark = $this->length;
+        $kept = $this->kept[$rule];
+
+        if ($kept) {
+            $this->entries[$mark] = $rule;
+            $this->length = $mark + 1;
+        }
 
         $matched = match (true) {
             $definition instanceof Concatenation => $this->matchConcatenation($definition),
@@ -93,39 +171,20 @@ final readonly class RecursiveDescentTracer
             )),
         };
 
-        if ($matched) {
-            $trace->leave($rule);
-        } else {
-            $trace->rewind($mark);
+        if (!$matched) {
+            $this->length = $mark;
+
+            return false;
         }
 
-        return $matched;
-    }
+        if ($kept) {
+            $length = $this->length;
 
-    private function matchLexeme(int $rule, Lexeme $definition): bool
-    {
-        $buffer = $this->buffer;
-        $token = $buffer->current;
-        $id = $definition->tokenId;
-
-        if ($token->id === $id) {
-            if ($definition->keep) {
-                // The terminal is recorded as an ordinary rule containing a
-                // single token, so it can be reduced in the same way
-                $trace = $this->trace;
-                $trace->enter($rule);
-                $trace->token($token);
-                $trace->leave($rule);
-            }
-
-            $buffer->next();
-
-            return true;
+            $this->entries[$length] = -$rule - 1;
+            $this->length = $length + 1;
         }
 
-        $this->error->record($id);
-
-        return false;
+        return true;
     }
 
     private function matchConcatenation(Concatenation $rule): bool

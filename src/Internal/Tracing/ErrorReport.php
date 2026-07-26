@@ -13,15 +13,15 @@ use Phplrt\Parser\Internal\Tracing\Result\Failure;
  *
  * @internal this is an internal library class, please do not use it in your code
  * @psalm-internal Phplrt\Parser\Internal
- *
- * @template-implements CompletableInterface<Failure>
  */
-final class ErrorReport implements CompletableInterface
+final class ErrorReport
 {
     /**
+     * The position of the failure the report describes.
+     *
      * @var int<-1, max>
      */
-    private int $furthest = -1;
+    public private(set) int $furthest = -1;
 
     private ?TokenInterface $token = null;
 
