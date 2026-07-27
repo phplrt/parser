@@ -13,7 +13,6 @@ use Phplrt\Parser\Grammar\Optional;
 use Phplrt\Parser\Grammar\Repetition;
 use Phplrt\Parser\Grammar\RuleInterface;
 use Phplrt\Parser\Internal\Buffer\BufferInterface;
-use Phplrt\Parser\Internal\ParseTree\Lookahead;
 use Phplrt\Parser\Internal\Tracing\ErrorReport;
 use Phplrt\Parser\Internal\Tracing\Result\Failure;
 use Phplrt\Parser\Internal\Tracing\Result\Success;
@@ -38,53 +37,56 @@ final class RecursiveDescentTracer
 
     private readonly ErrorReport $error;
 
-    /**
-     * @var array<int, array<int, true>>
-     */
-    private readonly array $first;
-
-    /**
-     * @var array<int, bool>
-     */
-    private readonly array $nullable;
-
     private function __construct(
         /**
          * @var list<RuleInterface>
          */
         private readonly array $grammar,
         private readonly BufferInterface $buffer,
-        Lookahead $lookahead,
+        /**
+         * Empty in case the lookahead is unknown, which admits every rule.
+         *
+         * @var array<int, array<int, true>>
+         */
+        private readonly array $startTokens,
         /**
          * @var array<int, bool>
          */
-        private readonly array $kept,
+        private readonly array $matchesEmptyInput,
+        /**
+         * @var array<int, bool>
+         */
+        private readonly array $presentInTree,
     ) {
         $this->error = new ErrorReport($buffer);
-        $this->first = $lookahead->first;
-        $this->nullable = $lookahead->nullable;
     }
 
     /**
      * Recognizes the given rule against the input.
      *
+     * The "matchesEmptyInput" and "presentInTree" tables cover every rule of
+     * the grammar, an unknown one is passed as a table admitting all of them.
+     *
      * @param list<RuleInterface> $grammar
      * @param int<0, max> $initial
-     * @param array<int, bool> $kept
+     * @param array<int, array<int, true>> $startTokens
+     * @param array<int, bool> $matchesEmptyInput
+     * @param array<int, bool> $presentInTree
      */
     public static function trace(
         array $grammar,
         int $initial,
         BufferInterface $buffer,
-        Lookahead $lookahead,
-        array $kept,
+        array $startTokens,
+        array $matchesEmptyInput,
+        array $presentInTree,
     ): Success|Failure {
         if ($grammar === []) {
             // Fast-finish on empty grammar
             return new Failure($buffer->current);
         }
 
-        $self = new self($grammar, $buffer, $lookahead, $kept);
+        $self = new self($grammar, $buffer, $startTokens, $matchesEmptyInput, $presentInTree);
 
         if ($self->match($initial) && $self->isEndOfInput()) {
             return new Success(
@@ -108,6 +110,17 @@ final class RecursiveDescentTracer
     {
         $definition = $this->grammar[$rule];
 
+        // A `Lexeme` is the most common matching rule in the parser. We could
+        // move everything inside this `if` statement into a separate method,
+        // but that would result in a performance loss of about ~5%.
+        //
+        // Therefore, it's better to sacrifice a little readability for a
+        // small boost.
+        //
+        // TODO In the future, this code should be rewritten from a recursive
+        //      algorithm to a full-fledged state machine and all the rules
+        //      should be inlined. This should, in theory, further speed up
+        //      the code (do this and then benchmark it).
         if ($definition instanceof Lexeme) {
             $buffer = $this->buffer;
             $token = $buffer->current;
@@ -127,17 +140,17 @@ final class RecursiveDescentTracer
             if ($definition->keep) {
                 $length = $this->length;
 
-                if ($this->kept[$rule]) {
+                if ($this->presentInTree[$rule]) {
                     // The terminal is recorded as an ordinary rule containing a
                     // single token, so it can be reduced in the same way
                     $this->entries[$length] = $rule;
                     $this->entries[$length + 1] = $token;
                     $this->entries[$length + 2] = -$rule - 1;
 
-                    $this->length = $length + 3;
+                    $this->length += 3;
                 } else {
                     $this->entries[$length] = $token;
-                    $this->length = $length + 1;
+                    ++$this->length;
                 }
             }
 
@@ -148,14 +161,14 @@ final class RecursiveDescentTracer
 
         // The rule requires a token it cannot start with, so there is nothing
         // to recognize
-        if (!isset($this->first[$rule][$this->buffer->current->id]) && !$this->nullable[$rule]) {
+        if (!isset($this->startTokens[$rule][$this->buffer->current->id]) && !$this->matchesEmptyInput[$rule]) {
             return false;
         }
 
         $mark = $this->length;
-        $kept = $this->kept[$rule];
+        $presentInTree = $this->presentInTree[$rule];
 
-        if ($kept) {
+        if ($presentInTree) {
             $this->entries[$mark] = $rule;
             $this->length = $mark + 1;
         }
@@ -177,7 +190,7 @@ final class RecursiveDescentTracer
             return false;
         }
 
-        if ($kept) {
+        if ($presentInTree) {
             $length = $this->length;
 
             $this->entries[$length] = -$rule - 1;
@@ -247,7 +260,7 @@ final class RecursiveDescentTracer
                 break;
             }
 
-            // A nullable inner rule would match forever without consuming a
+            // An inner rule matching empty input would match forever without consuming a
             // single token, so the repetition stops as soon as it stalls.
             if ($buffer->key === $before) {
                 break;
