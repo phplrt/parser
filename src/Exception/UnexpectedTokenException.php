@@ -5,29 +5,22 @@ declare(strict_types=1);
 namespace Phplrt\Parser\Exception;
 
 use Phplrt\Contracts\Lexer\TokenInterface;
-use Phplrt\Lexer\Token\Printer\PrettyTokenPrinter;
+use Phplrt\Contracts\Source\ReadableInterface;
 
 class UnexpectedTokenException extends ParserRuntimeException
 {
-    public static function fromToken(TokenInterface $token, string $source): self
-    {
-        return new self($token, $source, \sprintf(
-            'Syntax error, unexpected %s',
-            self::describe($token),
-        ));
-    }
+    public static function fromToken(
+        ReadableInterface $source,
+        TokenInterface $token,
+        ?\Throwable $previous = null,
+    ): self {
+        $message = \sprintf('Syntax error, unexpected %s', $token);
 
-    private static function describe(TokenInterface $token): string
-    {
-        if (\class_exists(PrettyTokenPrinter::class)) {
-            return new PrettyTokenPrinter()
-                ->print($token);
-        }
-
-        if ($token->value === '') {
-            return $token->name ?? 'end of input';
-        }
-
-        return \sprintf('"%s"', $token->value);
+        return new self(
+            source: $source,
+            token: $token,
+            message: $message,
+            previous: $previous,
+        );
     }
 }
