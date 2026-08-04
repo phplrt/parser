@@ -24,6 +24,10 @@ use Phplrt\Parser\Internal\Tracing\Result\Success;
  *
  * @internal this is an internal library class, please do not use it in your code
  * @psalm-internal Phplrt\Parser
+ *
+ * @phpstan-import-type LookaheadTableType from GrammarTable
+ * @phpstan-import-type KeptTableType from GrammarTable
+ * @phpstan-import-type ChoicePredictionTableType from GrammarTable
  */
 final class RecursiveDescentTracer
 {
@@ -37,23 +41,25 @@ final class RecursiveDescentTracer
      */
     private int $length = 0;
 
-    // These three are read on literally every rule, so we copy them out of the
-    // GrammarTable once instead of hopping through it every time.
-
     /**
      * @var list<RuleInterface>
      */
     private readonly array $grammar;
 
     /**
-     * @var array<int, array<int, true>|null>
+     * @var LookaheadTableType
      */
     private readonly array $lookahead;
 
     /**
-     * @var array<int, bool>
+     * @var KeptTableType
      */
-    private readonly array $presentInTree;
+    private readonly array $kept;
+
+    /**
+     * @var ChoicePredictionTableType
+     */
+    private readonly array $choicePrediction;
 
     private readonly ErrorReport $error;
 
@@ -63,7 +69,8 @@ final class RecursiveDescentTracer
     ) {
         $this->grammar = $table->rules;
         $this->lookahead = $table->lookahead;
-        $this->presentInTree = $table->presentInTree;
+        $this->kept = $table->kept;
+        $this->choicePrediction = $table->choicePrediction;
 
         $this->error = new ErrorReport($buffer, $table->rules, $table->lookahead);
     }
@@ -139,7 +146,7 @@ final class RecursiveDescentTracer
             if ($definition->keep) {
                 $length = $this->length;
 
-                if ($this->presentInTree[$rule]) {
+                if ($this->kept[$rule]) {
                     // The terminal is recorded as an ordinary rule containing a
                     // single token, so it can be reduced in the same way
                     $this->entries[$length] = $rule;
@@ -176,9 +183,9 @@ final class RecursiveDescentTracer
         }
 
         $mark = $this->length;
-        $presentInTree = $this->presentInTree[$rule];
+        $kept = $this->kept[$rule];
 
-        if ($presentInTree) {
+        if ($kept) {
             $this->entries[$mark] = $rule;
             $this->length = $mark + 1;
         }
@@ -189,7 +196,7 @@ final class RecursiveDescentTracer
         // such a table would cost, and doing it that way measured ~5% slower.
         $matched = match (true) {
             $definition instanceof Concatenation => $this->matchConcatenation($definition),
-            $definition instanceof Alternation => $this->matchAlternation($definition),
+            $definition instanceof Alternation => $this->matchAlternation($rule, $definition),
             $definition instanceof Optional => $this->matchOptional($definition),
             $definition instanceof Repetition => $this->matchRepetition($definition),
             $definition instanceof Predicate => $this->matchPredicate($definition),
@@ -205,7 +212,7 @@ final class RecursiveDescentTracer
             return false;
         }
 
-        if ($presentInTree) {
+        if ($kept) {
             $length = $this->length;
 
             $this->entries[$length] = -$rule - 1;
@@ -233,12 +240,23 @@ final class RecursiveDescentTracer
         return true;
     }
 
-    private function matchAlternation(Alternation $rule): bool
+    /**
+     * Recognizes the first of the alternatives that reads the input.
+     *
+     * Which of them are worth entering is decided by the token the input is at:
+     * every other one would have been rejected by that very token as soon as it
+     * was entered, and more than half of them are. An alternation the grammar
+     * says nothing about is recognized by trying every alternative it has.
+     */
+    private function matchAlternation(int $rule, Alternation $definition): bool
     {
         $buffer = $this->buffer;
         $rollback = $buffer->key;
 
-        foreach ($rule->ruleIds as $inner) {
+        $alternatives = $this->choicePrediction[$rule][$buffer->current->id]
+            ?? $definition->ruleIds;
+
+        foreach ($alternatives as $inner) {
             if ($this->match($inner)) {
                 return true;
             }
@@ -250,6 +268,15 @@ final class RecursiveDescentTracer
             if ($buffer->key !== $rollback) {
                 $buffer->seek($rollback);
             }
+        }
+
+        /**
+         * The alternatives left out are the ones the token the input is at
+         * rejects, and the tokens this rule may begin with are all of theirs,
+         * so it is reported in place of every one of them.
+         */
+        if ($buffer->key > $this->error->furthest) {
+            $this->error->record($rule);
         }
 
         return false;

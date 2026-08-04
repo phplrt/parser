@@ -16,6 +16,10 @@ use Phplrt\Parser\Grammar\RuleInterface;
  *
  * @internal this is an internal library class, please do not use it in your code
  * @psalm-internal Phplrt\Parser
+ *
+ * @phpstan-type LookaheadTableType array<int, array<int, true>|null>
+ * @phpstan-type KeptTableType array<int, bool>
+ * @phpstan-type ChoicePredictionTableType array<int, array<int, list<int>>>
  */
 final readonly class GrammarTable
 {
@@ -27,29 +31,29 @@ final readonly class GrammarTable
      * matches empty input, so whatever comes next is fine, or we simply weren't
      * given a lookahead table for this grammar. Both mean "never reject this
      * rule up front", so both are written down as "null" and the tracer doesn't
-     * have to tell them apart.
+     * have to tell them apart. Which of the two it is, is decided long before
+     * the recognition, so it is never asked here.
      *
-     * @var array<int, array<int, true>|null>
+     * @var LookaheadTableType
      */
     public array $lookahead;
 
     /**
      * The rules that become a node of the result.
      *
-     * A rule that is present builds its own value out of its children and hands
-     * it to its reducer. A rule that is absent passes the children straight up
+     * A rule that is kept builds its own value out of its children and hands
+     * it to its reducer. A rule that is dropped passes the children straight up
      * to the rule above and leaves nothing behind.
      *
-     * @var array<int, bool>
+     * @var KeptTableType
      */
-    public array $presentInTree;
+    public array $kept;
 
     /**
      * @param list<RuleInterface> $rules
      * @param int<0, max> $initial
-     * @param array<int, array<int, true>> $startTokens
-     * @param array<int, bool> $matchesEmptyInput
-     * @param array<int, bool> $presentInTree
+     * @param LookaheadTableType $lookahead
+     * @param KeptTableType $kept
      */
     public function __construct(
         /**
@@ -62,11 +66,37 @@ final readonly class GrammarTable
          * @var int<0, max>
          */
         public int $initial,
-        array $startTokens = [],
-        array $matchesEmptyInput = [],
-        array $presentInTree = [],
+        array $lookahead = [],
+        array $kept = [],
+        /**
+         * The alternatives of every alternation worth trying, indexed by the
+         * token the reading is at.
+         *
+         * An alternative is rejected by that token before it reads anything, so
+         * which of them stand a chance is a question about the token rather
+         * than about the input, and the compiler answers it once for all of
+         * them. An alternation the grammar says nothing about is recognized by
+         * trying every alternative it has, the way a regular PEG does.
+         *
+         * ```php
+         * [
+         *     // alternation #7 is worth entering by its 2nd alternative alone
+         *     // in case the reading is at token #3
+         *     7 => [3 => [9], 4 => [9, 12]],
+         * ]
+         * ```
+         *
+         * @var ChoicePredictionTableType
+         */
+        public array $choicePrediction = [],
     ) {
-        $this->lookahead = self::calculateLookahead($rules, $startTokens, $matchesEmptyInput);
+        // A grammar that has not been described is recognized all the same: it
+        // reads exactly the same sources, only slower, and errors get reported
+        // at later stages (in more nested rules), since the rules alone don't
+        // say where the reading was supposed to go.
+        $this->lookahead = $lookahead === []
+            ? \array_fill_keys(\array_keys($rules), null)
+            : $lookahead;
 
         // If a rule doesn't change anything, it can be skipped. This reduces
         // the amount of tracing and speeds up subsequent processing, although
@@ -74,36 +104,8 @@ final readonly class GrammarTable
         //
         // If the set of rules isn't explicitly passed, then we simply fill them
         // all in, assuming every rule is important.
-        $this->presentInTree = $presentInTree === []
+        $this->kept = $kept === []
             ? \array_fill_keys(\array_keys($rules), true)
-            : $presentInTree;
-    }
-
-    /**
-     * @param list<RuleInterface> $rules
-     * @param array<int, array<int, true>> $startTokens
-     * @param array<int, bool> $matchesEmptyInput
-     * @return array<int, array<int, true>|null>
-     */
-    private static function calculateLookahead(array $rules, array $startTokens, array $matchesEmptyInput): array
-    {
-        // Both tables are needed to reject a rule, so one without the other is
-        // useless and we just accept everything. That turns the parser into a
-        // regular PEG: it reads exactly the same sources, only slower, and
-        // errors get reported at later stages (in more nested rules), since the
-        // rules alone don't say where the reading was supposed to go.
-        if ($startTokens === [] || $matchesEmptyInput === []) {
-            return \array_fill_keys(\array_keys($rules), null);
-        }
-
-        $result = [];
-
-        foreach ($rules as $rule => $_) {
-            $result[$rule] = ($matchesEmptyInput[$rule] ?? true)
-                ? null
-                : ($startTokens[$rule] ?? []);
-        }
-
-        return $result;
+            : $kept;
     }
 }

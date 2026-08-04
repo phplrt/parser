@@ -29,7 +29,15 @@ use Phplrt\Parser\Internal\Tracing\Result\Failure;
 use Phplrt\Parser\Internal\Tracing\Result\Success;
 
 /**
+ * @template TResult of mixed = mixed
+ *
+ * @template-implements ParserInterface<TResult>
+ *
  * @phpstan-import-type ReducerType from ReducerTable
+ *
+ * @phpstan-import-type LookaheadTableType from GrammarTable
+ * @phpstan-import-type KeptTableType from GrammarTable
+ * @phpstan-import-type ChoicePredictionTableType from GrammarTable
  */
 readonly class Parser implements ParserInterface
 {
@@ -42,25 +50,29 @@ readonly class Parser implements ParserInterface
      * @param int<0, max> $initial the identifier of the rule the analysis
      *        starts at
      * @param array<int<0, max>, ReducerType> $reducers
-     * @param array<int, array<int, true>> $startTokens
-     * @param array<int, bool> $matchesEmptyInput
-     * @param array<int, bool> $presentInTree
+     * @param LookaheadTableType $lookahead the tokens a rule may begin with,
+     *        or {@see null} for a rule that may begin with any of them
+     * @param KeptTableType $kept The rule identifiers that become a node of
+     *        the result
+     * @param ChoicePredictionTableType $choicePrediction the alternatives
+     *        of every alternation worth trying, indexed by the token the
+     *        reading is at
      */
     public function __construct(
         private LexerInterface $lexer,
         array $grammar,
         int $initial,
         array $reducers = [],
-        array $startTokens = [],
-        array $matchesEmptyInput = [],
-        array $presentInTree = [],
+        array $lookahead = [],
+        array $kept = [],
+        array $choicePrediction = [],
     ) {
         $this->table = new GrammarTable(
             rules: $grammar,
             initial: $initial,
-            startTokens: $startTokens,
-            matchesEmptyInput: $matchesEmptyInput,
-            presentInTree: $presentInTree,
+            lookahead: $lookahead,
+            kept: $kept,
+            choicePrediction: $choicePrediction,
         );
 
         $this->reducers = new ReducerTable(
@@ -103,7 +115,7 @@ readonly class Parser implements ParserInterface
      * by the class of the result, and what stands in the way by its
      * diagnostics.
      *
-     * @return ($mode is Mode::Tolerant ? Result : Result<null>)
+     * @return ($mode is Mode::Tolerant ? Result<TResult> : Result<null>)
      * @throws ParserSourceException in case of the source cannot be read
      * @throws LexerExceptionInterface in case of the source cannot be read into
      *         tokens
@@ -121,30 +133,23 @@ readonly class Parser implements ParserInterface
             return new FailureResult($error->token, [new Diagnostic($error)]);
         }
 
-        $value = $mode === Mode::Tolerant ? $this->reduce($source, $result) : null;
+        $value = null;
+
+        if ($mode === Mode::Tolerant) {
+            $value = $this->reduce($source, $result);
+        }
 
         if ($result->furthest === null) {
+            // @phpstan-ignore-next-line : PHPStan false-positive
             return new SuccessfulResult($value);
         }
 
-        return new PartialResult($value, $result->stoppedAt, [
-            new Diagnostic($this->describe($source, $result->furthest, $result->stoppedAt)),
-        ]);
+        $error = $this->describe($source, $result->furthest, $result->stoppedAt);
+
+        // @phpstan-ignore-next-line : PHPStan false-positive
+        return new PartialResult($value, $result->stoppedAt, [new Diagnostic($error)]);
     }
 
-    /**
-     * Parses the source into an AST.
-     *
-     * A source the grammar does not describe in full is an error rather than
-     * a result.
-     *
-     * @throws UnexpectedTokenException on a syntax error
-     * @throws ParserSourceException in case of the source cannot be read
-     * @throws LexerExceptionInterface in case of the source cannot be read into
-     *         tokens
-     * @throws LexerRuntimeExceptionInterface in case of the source contains
-     *         what no token recognizes
-     */
     public function parse(ReadableInterface $source): mixed
     {
         $buffer = $this->lex($source);
@@ -163,6 +168,7 @@ readonly class Parser implements ParserInterface
 
     /**
      * @throws ParserSourceException in case of the source cannot be read
+     * @return TResult
      */
     private function reduce(ReadableInterface $source, Success $result): mixed
     {
