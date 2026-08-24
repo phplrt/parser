@@ -17,9 +17,6 @@ use PHPUnit\Framework\Attributes\TestDox;
 #[Group('phplrt/parser')]
 final class UnexpectedTokenExceptionTest extends TestCase
 {
-    /**
-     * @var non-empty-string
-     */
     private const string SOURCE = "first line\nsecond line\nthird line";
 
     #[TestDox('The source the error occurred in is available')]
@@ -40,7 +37,6 @@ final class UnexpectedTokenExceptionTest extends TestCase
 
         self::assertStringStartsWith(<<<'OUT'
             error[UnexpectedTokenException]: Syntax error, unexpected "line" (T_WORD)
-              |
             1 | first line
             2 | second line
               |        ^^^^
@@ -58,7 +54,6 @@ final class UnexpectedTokenExceptionTest extends TestCase
         self::assertStringStartsWith(<<<'OUT'
             error[UnexpectedTokenException]: Syntax error, unexpected "line" (T_WORD)
              --> /app/example.pp2:2:8
-              |
             1 | first line
             2 | second line
               |        ^^^^
@@ -76,7 +71,6 @@ final class UnexpectedTokenExceptionTest extends TestCase
 
         self::assertStringStartsWith(<<<'OUT'
             error[UnexpectedTokenException]: Syntax error, unexpected end of input
-              |
             1 |
               | ^
             OUT, (string) $exception);
