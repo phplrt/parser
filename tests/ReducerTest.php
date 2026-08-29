@@ -11,80 +11,72 @@ use Phplrt\Parser\Grammar\Concatenation;
 use Phplrt\Parser\Grammar\Lexeme;
 use Phplrt\Parser\Grammar\Optional;
 use Phplrt\Parser\Grammar\Repetition;
-use Phplrt\Parser\Grammar\RuleInterface;
 use Phplrt\Parser\Parser;
 use Phplrt\Parser\Tests\Stub\ArithmeticLexer;
 use Phplrt\Source\StringSource;
-use PHPUnit\Framework\Attributes\Group;
-use PHPUnit\Framework\Attributes\TestDox;
+use Testo\Assert;
+use Testo\Filter\Group;
+use Testo\Test;
 
 #[Group('phplrt/parser')]
+#[Test]
 final class ReducerTest extends TestCase
 {
-    #[TestDox('The rules without a reducer are reduced to the recognized tokens')]
     public function testReducesRulesToTokens(): void
     {
         $actual = self::createParser()->parse(StringSource::createFromString('1 + 2 - 3'));
 
-        self::assertSame(
-            ['T_NUMBER(1)', 'T_NUMBER(2)', 'T_NUMBER(3)'],
-            self::describe($actual),
-        );
+        Assert::same(self::describe($actual), ['T_NUMBER(1)', 'T_NUMBER(2)', 'T_NUMBER(3)']);
     }
 
-    #[TestDox('The tokens of the rules that are not kept are omitted')]
     public function testOmitsTokensThatAreNotKept(): void
     {
         $actual = self::createParser()->parse(StringSource::createFromString('1 + 2'));
 
-        self::assertCount(2, self::describe($actual));
+        Assert::count(self::describe($actual), 2);
     }
 
-    #[TestDox('The reducer of a terminal receives the token itself')]
     public function testReducerOfTerminalReceivesToken(): void
     {
         $parser = self::createParser([
             self::RULE_NUMBER => static function (Context $context, mixed $children): int {
-                self::assertInstanceOf(TokenInterface::class, $children);
+                Assert::instanceOf($children, TokenInterface::class);
 
                 return (int) $children->value;
             },
         ]);
 
-        self::assertSame([1, 2, 3], $parser->parse(StringSource::createFromString('1 + 2 + 3')));
+        Assert::same($parser->parse(StringSource::createFromString('1 + 2 + 3')), [1, 2, 3]);
     }
 
-    #[TestDox('The reducer of a concatenation receives the list of its children')]
     public function testReducerOfConcatenationReceivesList(): void
     {
         $parser = self::createParser([
             self::RULE_NUMBER => static fn(Context $context, mixed $children): int => (int) $children->value,
             self::RULE_EXPRESSION => static function (Context $context, mixed $children): int {
-                self::assertIsList($children);
+                Assert::array($children)->isList();
 
                 return \array_sum($children);
             },
         ]);
 
-        self::assertSame(6, $parser->parse(StringSource::createFromString('1 + 2 + 3')));
+        Assert::same($parser->parse(StringSource::createFromString('1 + 2 + 3')), 6);
     }
 
-    #[TestDox('The reducer of an alternation receives the value of the matched branch')]
     public function testReducerOfAlternationReceivesBranch(): void
     {
         $parser = self::createParser([
             self::RULE_NUMBER => static fn(Context $context, mixed $children): int => (int) $children->value,
             self::RULE_OPERATOR => static function (Context $context, mixed $children): string {
-                self::assertSame([], $children);
+                Assert::same($children, []);
 
                 return '?';
             },
         ]);
 
-        self::assertSame([1, '?', 2], $parser->parse(StringSource::createFromString('1 + 2')));
+        Assert::same($parser->parse(StringSource::createFromString('1 + 2')), [1, '?', 2]);
     }
 
-    #[TestDox('The reducer of a repetition without iterations receives an empty list')]
     public function testReducerOfRepetitionWithoutIterations(): void
     {
         $received = [];
@@ -100,10 +92,9 @@ final class ReducerTest extends TestCase
 
         $parser->parse(StringSource::createFromString('1'));
 
-        self::assertSame([[]], $received);
+        Assert::same($received, [[]]);
     }
 
-    #[TestDox('The reducer of an optional rule receives its value or an empty list')]
     public function testReducerOfOptionalRule(): void
     {
         $received = [];
@@ -118,13 +109,12 @@ final class ReducerTest extends TestCase
             },
         ];
 
-        self::assertSame(['sign', 1], self::createParser($reducers)->parse(StringSource::createFromString('-1')));
-        self::assertSame([1], self::createParser($reducers)->parse(StringSource::createFromString('1')));
+        Assert::same(self::createParser($reducers)->parse(StringSource::createFromString('-1')), ['sign', 1]);
+        Assert::same(self::createParser($reducers)->parse(StringSource::createFromString('1')), [1]);
 
-        self::assertSame(['sign', []], $received);
+        Assert::same($received, ['sign', []]);
     }
 
-    #[TestDox('The reducer returning "null" keeps the children of the rule')]
     public function testReducerReturningNullKeepsChildren(): void
     {
         $parser = self::createParser([
@@ -132,10 +122,9 @@ final class ReducerTest extends TestCase
             self::RULE_EXPRESSION => static fn(Context $context, mixed $children): mixed => null,
         ]);
 
-        self::assertSame([1, 2], $parser->parse(StringSource::createFromString('1 + 2')));
+        Assert::same($parser->parse(StringSource::createFromString('1 + 2')), [1, 2]);
     }
 
-    #[TestDox('The context contains the rule, the source and the last recognized token')]
     public function testContext(): void
     {
         $contexts = [];
@@ -150,13 +139,81 @@ final class ReducerTest extends TestCase
 
         $parser->parse(StringSource::createFromString('1 + 2'));
 
-        self::assertCount(1, $contexts);
-        self::assertSame(self::RULE_EXPRESSION, $contexts[0]->rule);
-        self::assertSame('1 + 2', $contexts[0]->source->content);
-        self::assertSame('2', $contexts[0]->token?->value);
+        Assert::count($contexts, 1);
+        Assert::same($contexts[0]->rule, self::RULE_EXPRESSION);
+        Assert::same($contexts[0]->source->content, '1 + 2');
+        Assert::same($contexts[0]->begin, 0);
+        Assert::same($contexts[0]->length, 5);
     }
 
-    #[TestDox('The result does not depend on the optional tables')]
+    public function testContextPosition(): void
+    {
+        $positions = [];
+
+        $parser = self::createParser([
+            self::RULE_NUMBER => static function (Context $context, mixed $children) use (&$positions): mixed {
+                $positions[] = [$context->begin, $context->length];
+
+                return $children;
+            },
+        ]);
+
+        $parser->parse(StringSource::createFromString('1 + 22'));
+
+        Assert::same($positions, [[0, 1], [4, 2]]);
+    }
+
+    public function testContextPositionOfSequence(): void
+    {
+        $positions = [];
+
+        $parser = self::createParser([
+            self::RULE_EXPRESSION => static function (Context $context, mixed $children) use (&$positions): mixed {
+                $positions[] = [$context->begin, $context->length];
+
+                return $children;
+            },
+        ]);
+
+        $parser->parse(StringSource::createFromString('1 + 22 - 3'));
+
+        Assert::same($positions, [[0, 10]]);
+    }
+
+    public function testContextPositionOmitsTokensThatAreNotKept(): void
+    {
+        $positions = [];
+
+        $parser = self::createParser([
+            self::RULE_EXPRESSION => static function (Context $context, mixed $children) use (&$positions): mixed {
+                $positions[] = [$context->begin, $context->length];
+
+                return $children;
+            },
+        ]);
+
+        $parser->parse(StringSource::createFromString('-1'));
+
+        Assert::same($positions, [[1, 1]]);
+    }
+
+    public function testContextPositionOfEmptyRule(): void
+    {
+        $positions = [];
+
+        $parser = self::createParser([
+            self::RULE_TAIL => static function (Context $context, mixed $children) use (&$positions): mixed {
+                $positions[] = [$context->begin, $context->length];
+
+                return $children;
+            },
+        ]);
+
+        $parser->parse(StringSource::createFromString('42'));
+
+        Assert::same($positions, [[2, 0]]);
+    }
+
     public function testReducesWithoutOptionalTables(): void
     {
         $reducers = [
@@ -173,13 +230,9 @@ final class ReducerTest extends TestCase
             reducers: $reducers,
         );
 
-        self::assertSame(
-            self::createParser($reducers)->parse(StringSource::createFromString('-1 + 2 - 3')),
-            $parser->parse(StringSource::createFromString('-1 + 2 - 3')),
-        );
+        Assert::same($parser->parse(StringSource::createFromString('-1 + 2 - 3')), self::createParser($reducers)->parse(StringSource::createFromString('-1 + 2 - 3')));
     }
 
-    #[TestDox('The result of an empty grammar rule is an empty list')]
     public function testReducesEmptyResult(): void
     {
         $grammar = [new Lexeme(ArithmeticLexer::T_NUMBER, false)];
@@ -195,7 +248,7 @@ final class ReducerTest extends TestCase
             choicePrediction: $analysis->choicePrediction,
         );
 
-        self::assertSame([], $parser->parse(StringSource::createFromString('1')));
+        Assert::same($parser->parse(StringSource::createFromString('1')), []);
     }
 
     private const int RULE_EXPRESSION = 0;
@@ -239,12 +292,12 @@ final class ReducerTest extends TestCase
 
     private static function describe(mixed $result): array
     {
-        self::assertIsList($result);
+        Assert::array($result)->isList();
 
         $tokens = [];
 
         foreach ($result as $token) {
-            self::assertInstanceOf(TokenInterface::class, $token);
+            Assert::instanceOf($token, TokenInterface::class);
 
             $tokens[] = ArithmeticLexer::describe($token);
         }
