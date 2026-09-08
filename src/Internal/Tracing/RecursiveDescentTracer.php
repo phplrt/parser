@@ -85,14 +85,9 @@ final class RecursiveDescentTracer
         $this->error = new ErrorReport($buffer, $table->rules, $table->lookahead);
     }
 
-    /**
-     * @param int<0, max> $initial the identifier of the rule the recognition
-     *        starts at
-     */
     public static function trace(
         GrammarTable $table,
         BufferInterface $buffer,
-        int $initial,
     ): SuccessfulTracingResult|FailureTracingResult {
         if ($table->rules === []) {
             // Fast-finish on empty grammar
@@ -100,7 +95,7 @@ final class RecursiveDescentTracer
         }
 
         $isMatched = ($self = new self($table, $buffer))
-            ->match($initial);
+            ->match($table->initial);
 
         $current = $buffer->current;
 
@@ -116,8 +111,8 @@ final class RecursiveDescentTracer
          * end has not described the source either, so it is reported the very
          * same way.
          */
-        if (isset($self->messages[$initial])) {
-            $self->error->labelInitial($initial);
+        if (isset($self->messages[$table->initial])) {
+            $self->error->labelInitial($table->initial);
         }
 
         return $self->error->toFailureResult(
